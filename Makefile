@@ -1,6 +1,7 @@
 Proj_Name=ad9102
-Proj_Dir=/home/kvon/W/Projects/sys/$(Proj_Name)
-CMSIS_Dir=$(Proj_Dir)/lib/CMSIS/STM32CubeF4/Drivers/CMSIS
+Proj_Super_Dir=/home/kvon/W/Projects/sys/radio
+Proj_Dir=$(Proj_Super_Dir)/$(Proj_Name)
+CMSIS_Dir=$(Proj_Super_Dir)/lib/CMSIS/STM32CubeF4/Drivers/CMSIS
 CMSIS_Core_Include=$(CMSIS_Dir)/Core/Include
 CMSIS_Device_Include=$(CMSIS_Dir)/Device/ST/STM32F4xx/Include
 CMSIS_Device_Source=$(CMSIS_Dir)/Device/ST/STM32F4xx/Source/Templates
@@ -37,8 +38,8 @@ CFLAGS=$(COREFLAGS)
 
 all:$(Proj_Name)
 
-$(Proj_Name):$(Startup_FileName).o system_stm32f4xx.o main.o rcc.o uart.o gpio.o spi.o ad9102.o # $(Proj_Name)-as.o
-	arm-none-eabi-gcc $(LDFLAGS) -o $(Proj_Name).elf -Tmem.ld $(Startup_FileName).o system_stm32f4xx.o main.o rcc.o uart.o gpio.o spi.o ad9102.o $(Lib_M) # $(Proj_Name)-as.o
+$(Proj_Name):$(Startup_FileName).o system_stm32f4xx.o main.o rcc.o uart.o gpio.o spi.o ad9102-reg.o ad9102-spi.o # $(Proj_Name)-as.o
+	arm-none-eabi-gcc $(LDFLAGS) -o $(Proj_Name).elf -Tmem.ld $(Startup_FileName).o system_stm32f4xx.o main.o rcc.o uart.o gpio.o spi.o ad9102-reg.o ad9102-spi.o $(Lib_M) # $(Proj_Name)-as.o
 	arm-none-eabi-objcopy -O binary $(Proj_Name).elf $(Proj_Name).bin
 
 $(Startup_FileName).o:
@@ -57,8 +58,10 @@ gpio.o:
 		arm-none-eabi-gcc $(COREFLAGS) -I$(CMSIS_Device_Include) -I$(CMSIS_Core_Include) -c -g -o $@ gpio.c -D$(Target)
 spi.o:
 		arm-none-eabi-gcc $(COREFLAGS) -I$(CMSIS_Device_Include) -I$(CMSIS_Core_Include) -c -g -o $@ spi.c -D$(Target)
-ad9102.o:
-		arm-none-eabi-gcc $(COREFLAGS) -I$(CMSIS_Device_Include) -I$(CMSIS_Core_Include) -c -g -o $@ ad9102.c -D$(Target)
+ad9102-reg.o:
+		arm-none-eabi-gcc $(COREFLAGS) -I$(CMSIS_Device_Include) -I$(CMSIS_Core_Include) -c -g -o $@ ad9102-reg.c -D$(Target)
+ad9102-spi.o:
+		arm-none-eabi-gcc $(COREFLAGS) -I$(CMSIS_Device_Include) -I$(CMSIS_Core_Include) -c -g -o $@ ad9102-spi.c -D$(Target)
 		
 # $(Proj_Name)-as.o:
 # 	arm-none-eabi-as -mcpu=cortex-m4 -o $@ main.s

@@ -9,6 +9,7 @@
 /*	global variables	*/
 char buf[MODEM_CHAR_BUF_SIZE];
 ad9102_spi_data_t spi_data;
+extern ad9102_reg_t ad9102_reg[AD9102_REG_NUM];
 
 /*	not in use	*/
 void SysTick_Handler(){
@@ -22,8 +23,11 @@ void main(void)
 	int rv,i;
 	/*	register address	*/
 	uint16_t addr;
-	/*	*/
-	uint32_t value;
+	/*	use to write data to the only register	*/
+	uint16_t value;
+	/*	buffer to receive data from SPI port of ad9102	*/
+	const uint8_t rx_buf_size=0x4;
+	uint16_t rx_buf[rx_buf_size];
 	
 	/*	PLLCLK settings	*/
 	stm32_pll_t stm32_pll;
@@ -65,12 +69,15 @@ void main(void)
 		stm32_usart_tx(buf,0);
 		return;
 	}
-	/*	reset ad9102	*/
+	/*	reset ad9102 (the only time)	*/
+
+	/*
 	AD9102_Reset_High;
 	AD9102_Reset_Low;
+	dummy_loop(0xff);
 	AD9102_Reset_High;
-	/*	try to read register value	*/
-	addr=0x0c;
+	*/
+
 	/*
 	rv=ad9102_read_reg(addr);
 	sprintf(buf,"Register: addr=0x%.4x, rx_buf=0x%.4x 0x%.4x 0x%.4x\n",
@@ -83,10 +90,35 @@ void main(void)
 		spi_data.rx_buf[7]);
 	stm32_usart_tx(buf,0);
 	*/
-	value=ad9102_cmsis_read_reg(addr);
-	sprintf(buf,"Register: addr=0x%.4x, value=0x%.8x\n",addr,value);
+	
+	/*	registers test	*/
+	/*	enable to write to SRAM	*/
+	ad9102_write_reg(0x1e,0x0006);
+	ad9102_write_reg(0x07,0x000f);
+	for(i=0;i<AD9102_REG_NUM;i++){
+		memset(rx_buf,0,rx_buf_size*sizeof(uint16_t));
+		ad9102_read_reg(ad9102_reg[i].addr,rx_buf,2);
+		sprintf(buf,"Register: addr=0x%.4x, value={0x%.4x 0x%.4x 0x%.4x 0x%.4x}\n",
+			ad9102_reg[i].addr,
+			rx_buf[0],
+			rx_buf[1],
+			rx_buf[2],
+			/*	register reset value	*/
+			ad9102_reg[i].value
+		);
+		stm32_usart_tx(buf,0);
+	}
+	
+	/*	system memory test	*/
+	ad9102_write_reg(0x6001,0x0007);
+	ad9102_read_reg(0x6001,rx_buf,2);
+	sprintf(buf,"SRAM: addr=0x6001, value={0x%.4x 0x%.4x 0x%.4x}\n",
+		rx_buf[0],
+		rx_buf[1],
+		rx_buf[2]
+	);
 	stm32_usart_tx(buf,0);
-		
+	
 	stm32_usart_tx("Programm is finished\n",0);
 	/*	programm is finished	*/
 	stm32_led13_blink(0x8,0xffff);

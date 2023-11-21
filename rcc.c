@@ -7,7 +7,7 @@ int stm32_rcc_init(){
 	RCC->AHB1ENR|=RCC_AHB1ENR_GPIOBEN;
 	RCC->APB2ENR|=RCC_APB2ENR_SPI1EN;
 	/*	set AHB prescaler to 16	*/
-	RCC->CFGR|=(0xb<<4);
+	RCC->CFGR|=(0x9<<4);
 	/*	disable APB2 prescaler (clearing highest bits)	*/
 	RCC->CFGR&=~0x00008000;
 	return MODEM_SUCCESS;
