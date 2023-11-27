@@ -10,6 +10,15 @@ int stm32_rcc_init(){
 	RCC->CFGR|=(0x9<<4);
 	/*	disable APB2 prescaler (clearing highest bits)	*/
 	RCC->CFGR&=~0x00008000;
+	/*	AF for PA8 (DDS_CLK)	*/
+	GPIOA->MODER|=GPIO_MODER_MODER8_1;
+	/*	AF0 for PA8 (MCO_1)	*/
+	GPIOA->AFR[1]&=~0xf;
+	/*	HSI is used as source for MC0_1	(reset value)	*/
+	RCC->CFGR&=~(0x3<<21);
+		/*	MCO_1 prescaler is not used	*/
+	RCC->CFGR&=~(0x7<<24);
+	/*	RCC->CFGR|=(0x4<<24);	*/
 	return MODEM_SUCCESS;
 }
 

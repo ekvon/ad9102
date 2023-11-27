@@ -3,15 +3,22 @@
 int stm32_led_init(){
 	/*	general output for PA8 (DDS_RES)	*/
 	GPIOB->MODER|=GPIO_MODER_MODER13_0;
+	/*	general output for PB12	*/
+	GPIOB->MODER|=GPIO_MODER_MODER12_0;	
 	/*	general output for PB13 (01)	*/
 	GPIOB->MODER|=GPIO_MODER_MODER13_0;
 	/*	general output for PB14 (01)	*/
 	GPIOB->MODER|=GPIO_MODER_MODER14_0;
-	/*	pull-down for led pins	*/
-	GPIOB->OTYPER|=(0x1<<26)|(0x1<<28);
+	/*	pull-down for gpio pins	*/
+	GPIOB->OTYPER|=(0x1<<24)|(0x1<<26)|(0x1<<28);
+	/*	high value for DDS_TRIG	*/
+	GPIOB->BSRR&=~GPIO_BSRR_BR12;
+	GPIOB->BSRR|=GPIO_BSRR_BS12;
 	/*	turn off	*/
-	GPIOB->BSRR=GPIO_BSRR_BR13;
-  GPIOB->BSRR=GPIO_BSRR_BR14;
+	GPIOB->BSRR&=~GPIO_BSRR_BS13;
+	GPIOB->BSRR|=GPIO_BSRR_BR13;
+	GPIOB->BSRR&=~GPIO_BSRR_BS14;
+  GPIOB->BSRR|=GPIO_BSRR_BR14;
   return MODEM_SUCCESS;
 }
 

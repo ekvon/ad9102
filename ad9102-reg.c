@@ -1,5 +1,9 @@
 #include "ad9102.h"
 
+#include <memory.h>
+
+ad9102_map_t ad9102_map;
+
 ad9102_reg_t ad9102_reg[AD9102_REG_NUM]={
 	{"SPICONFIG",0x00,0x0000},
 	{"POWERCONFIG",0x01,0x0000},
@@ -20,8 +24,9 @@ ad9102_reg_t ad9102_reg[AD9102_REG_NUM]={
 	{"PAT_PERIOD",0x29,0x8000},
 	{"DAC_PAT",0x2b,0x0101},
 	{"DOUT_START",0x2c,0x0003},
-	{"DOUT_CONFIG",0x31,0x0000},
-	{"DAC_DST",0x35,0x0000},
+	{"DOUT_CONFIG",0x2d,0x0000},
+	{"DAC_CST",0x31,0x0000},
+	{"DAC_DGAIN",0x35,0x0000},
 	{"SAW_CONFIG",0x37,0x0000},
 	{"DDS_TW32",0x3e,0x0000},
 	{"DDS_TW1",0x3f,0x0000},
@@ -36,3 +41,13 @@ ad9102_reg_t ad9102_reg[AD9102_REG_NUM]={
 	{"CFG_ERROR",0x60,0x0000}
 };
 
+void ad9102_map_init(){
+	uint8_t i=0;
+	uint16_t addr;
+	
+	memset(ad9102_map,0,(AD9102_REG_MAX_ADDR+1)*sizeof(uint8_t));
+	for(i=0;i<AD9102_REG_NUM;i++){
+		addr=ad9102_reg[i].addr;
+		ad9102_map[addr]=i;
+	}
+}
