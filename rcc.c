@@ -14,10 +14,13 @@ int stm32_rcc_init(){
 	GPIOA->MODER|=GPIO_MODER_MODER8_1;
 	/*	AF0 for PA8 (MCO_1)	*/
 	GPIOA->AFR[1]&=~0xf;
-	/*	HSI is used as source for MC0_1	(reset value)	*/
-	RCC->CFGR&=~(0x3<<21);
-		/*	MCO_1 prescaler is not used	*/
-	RCC->CFGR&=~(0x7<<24);
+	/*	high speed for MCO_1 pin	*/
+	GPIOA->OSPEEDR=(0x3<<16);
+	/*	PLL is used as source for MC0_1	(reset value)	*/
+	RCC->CFGR|=(0x3<<21);
+	/*	MCO_1 prescaler is not used	*/
+	RCC->CFGR&=~(0x1<<26);
+	/*	RCC->CFGR|=(0x4<<24);	*/
 	/*	RCC->CFGR|=(0x4<<24);	*/
 	return MODEM_SUCCESS;
 }
@@ -60,13 +63,16 @@ int stm32_rcc_pll_init(stm32_pll_t * stm32_pll){
 	return MODEM_SUCCESS;
 }
 
-void stm32_rcc_switch(stm32_pll_t * stm32_pll){
+void stm32_rcc_pll(stm32_pll_t * stm32_pll){
 	/*	configure PLL clock	*/
 	RCC->PLLCFGR=stm32_pll->reg;
 	/*	turn on PLLCLK	*/
 	RCC->CR|=RCC_CR_PLLON;
 	while(!(RCC->CR&RCC_CR_PLLRDY)){
 	}
+	if(!stm32_pll->sw)
+		/*	just turn on the PLL clock	*/
+		return;
 	/*	try to select PLLCLK as source for SYSCLK	*/
 	RCC->CFGR&=0xfffffffc;
 	RCC->CFGR|=0x2;

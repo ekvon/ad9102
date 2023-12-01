@@ -49,6 +49,8 @@ typedef struct stm32_pll
 	uint32_t f_out;
 	/*	RCC_PLLCFGR value	*/
 	uint32_t reg;
+	/*	flag to switch to PLL clock	*/
+	uint8_t sw;
 } stm32_pll_t;
 
 typedef struct spi_data
@@ -66,7 +68,7 @@ int stm32_rcc_init();
 /*	define value of RCC_PLLCFGR at specified settings	*/
 int stm32_rcc_pll_init(stm32_pll_t * stm32_pll);
 /*	switch to PLLCLK; before calling this function struct stm32_pll should be initialized with the help of 'stm32_rcc_pll_init'	*/
-void stm32_rcc_switch(stm32_pll_t * stm32_pll);
+void stm32_rcc_pll(stm32_pll_t * stm32_pll);
 
 /*	LED pins initialization	*/
 int stm32_led_init();

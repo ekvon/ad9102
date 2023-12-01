@@ -75,6 +75,13 @@ typedef struct ad9102_spi_data
 	uint16_t rx_buf[AD9102_SPI_BUF_SIZE];
 } ad9102_spi_data_t; 
 
+/*	calibration result	*/
+typedef struct ad9102_cal_res
+{
+	uint16_t dac_rset_cal;
+	uint16_t dac_gain_cal;
+} ad9102_cal_res_t;
+
 void ad9102_map_init();
 /*	prepare SPI buffers for communication with using stm32 functions	*/
 void ad9102_prepare_spi_data(uint16_t * data);
@@ -88,4 +95,6 @@ void ad9102_write_reg(uint16_t addr,uint16_t value);
 void ad9102_write_reg16(uint16_t addr,uint16_t value);
 /*	DDS tuning word calculation	*/
 uint32_t ad9102_dds_tw(uint32_t f_dds,uint32_t f_clkp);
+/*	calibration procedure	*/
+int ad9102_calibration();
 #endif
