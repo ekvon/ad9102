@@ -73,7 +73,26 @@ int stm32_usart_tx(int8_t * data,size_t len){
 }
 
 int stm32_usart_rx(int8_t * data,size_t len){
-	/*	not realized yet	*/
-	return MODEM_ERROR;
+	size_t i;
+
+	/*	nulling buffer	*/
+	memset(data,0,len);
+	/*	disable transmitter	*/
+	USART1->CR1&=~USART_CR1_TE;
+	/*	enable receiver	*/
+	USART1->CR1|=USART_CR1_RE;
+	for(i=0;i<len;i++){
+		if(USART1->SR&USART_SR_RXNE){
+			/*	receive character	*/
+			data[i]=(uint8_t)USART1->DR;
+			if(data[i]=='\n')
+				break;
+		}
+	}
+	/*	disable	receiver	*/
+	USART1->CR1&=~USART_CR1_RE;
+	/*	enable transmitter	*/
+	USART1->CR1|=USART_CR1_TE;
+	return (int)i;
 }
 

@@ -6,8 +6,16 @@ int stm32_rcc_init(){
 	RCC->AHB1ENR|=RCC_AHB1ENR_GPIOAEN;
 	RCC->AHB1ENR|=RCC_AHB1ENR_GPIOBEN;
 	RCC->APB2ENR|=RCC_APB2ENR_SPI1EN;
-	/*	set AHB prescaler to 16	*/
-	RCC->CFGR|=(0x9<<4);
+	/*	HSE is used as source for MC0_1	(reset value)	*/
+	RCC->CFGR|=(0x3<<21);
+	/*	MCO_1 prescaler is not used	*/
+	RCC->CFGR&=~(0x1<<26);
+	/*	enable external oscillator	*/
+	RCC->CR|=(1<<16);
+	while(!(RCC->CR&(1<<17))){
+	}
+	/*	set AHB prescaler to 4	*/
+	/*	RCC->CFGR|=(0x9<<4);	*/
 	/*	disable APB2 prescaler (clearing highest bits)	*/
 	RCC->CFGR&=~0x00008000;
 	/*	AF for PA8 (DDS_CLK)	*/
@@ -16,10 +24,6 @@ int stm32_rcc_init(){
 	GPIOA->AFR[1]&=~0xf;
 	/*	high speed for MCO_1 pin	*/
 	GPIOA->OSPEEDR=(0x3<<16);
-	/*	PLL is used as source for MC0_1	(reset value)	*/
-	RCC->CFGR|=(0x3<<21);
-	/*	MCO_1 prescaler is not used	*/
-	RCC->CFGR&=~(0x1<<26);
 	/*	RCC->CFGR|=(0x4<<24);	*/
 	/*	RCC->CFGR|=(0x4<<24);	*/
 	return MODEM_SUCCESS;
@@ -58,8 +62,8 @@ int stm32_rcc_pll_init(stm32_pll_t * stm32_pll){
 	/*	it's impossible	*/
 	default:{return MODEM_ERROR;}
 	}
-	/*	highest bits in reset values; HSI used as source clock	*/
-	stm32_pll->reg=0x24000000|(pllp_field<<16)|(stm32_pll->N<<6)|stm32_pll->M;
+	/*	highest bits in reset values; HSE used as source clock	*/
+	stm32_pll->reg=0x24000000|(1<<22)|(pllp_field<<16)|(stm32_pll->N<<6)|stm32_pll->M;
 	return MODEM_SUCCESS;
 }
 

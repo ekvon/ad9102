@@ -6,6 +6,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define MODEM_STM32_HSE_FREQ 8000000
+
 #define MODEM_SUCCESS 0
 #define MODEM_ERROR -1
 
@@ -84,7 +86,7 @@ int stm32_usart_init(stm32_usart_br_param_t * usart_br);
 int stm32_usart_br_init(stm32_usart_br_param_t * usart_br);
 /*	send data using USART1	*/
 int stm32_usart_tx(int8_t * data,size_t len);
-/*	receive data using USART1	*/
+/*	receive data using USART1	(without interrupt)	*/
 int stm32_usart_rx(int8_t * data,size_t len);
 
 /*	stm32 SPI module interface	*/
