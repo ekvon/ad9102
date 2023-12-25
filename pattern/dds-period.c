@@ -36,15 +36,15 @@ void ad9102_pattern_dds_period(ad9102_dds_param_t * param){
 	num_clkp_delay=(uint32_t)(param->f_clkp*start_delay_time);
 	/*	*/
 	dds_play_time=param->pattern_period-start_delay_time;
-	if(!param->dds_cyc){
+	if(!param->dds_cyc_out){
 		/*	number of cycles at specified zero and filling frequncies	*/
 		f_out=param->f_zero+param->f_fill;
-		param->dds_cyc=(uint16_t)(f_out*dds_play_time);
+		param->dds_cyc_out=(uint16_t)(f_out*dds_play_time);
 		param->dds_cyc_fill=(uint16_t)(param->f_fill*dds_play_time);
 	}
 	else{
 		/*	DDS filling frequency at specified number of cycles	and zero frequency	*/
-		f_out=(uint32_t)(1.0*param->dds_cyc/dds_play_time);
+		f_out=(uint32_t)(1.0*param->dds_cyc_out/dds_play_time);
 		param->f_fill=f_out-param->f_zero;
 	}
 
@@ -99,6 +99,6 @@ void ad9102_pattern_dds_period(ad9102_dds_param_t * param){
 	
 	/*	number of DDS cycles inside the only pattern period	*/
 	i=ad9102_map[DDS_CYC];
-	ad9102_reg[i].value=param->dds_cyc;
+	ad9102_reg[i].value=param->dds_cyc_out;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 }

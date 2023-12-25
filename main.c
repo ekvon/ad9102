@@ -186,16 +186,16 @@ void main(void)
 	/*	DDS output using PATTERN_PERIOD and START_DELAY	*/
 	ad9102_dds_param_t param;
 	param.f_clkp=40000000;
-	param.f_zero=868000;
+	param.f_zero=23436000;
 	param.f_fill=/*	2000	*/100000;
-	param.dds_cyc=0;
+	param.dds_cyc_out=0;
 	/*	1/256	*/
 	param.pattern_period=/*	0.00390625	*/0.0001024;
 	/*	delay is half of pattern period	*/
 	param.start_delay=0.5;
 	/*	*/
 	ad9102_pattern_dds_ram(&param);
-	sprintf(buf,"ad9102_pattern_dds: number of cycles is %u\n",param.dds_cyc);
+	sprintf(buf,"ad9102_pattern_dds: number of cycles is %u\n",param.dds_cyc_out);
 	stm32_usart_tx(buf,0);
 	
 	/*	PAT_STATUS (0x1f): RUN=1	*/
