@@ -38,8 +38,8 @@ CFLAGS=$(COREFLAGS)
 
 all:$(Proj_Name)
 
-$(Proj_Name):$(Startup_FileName).o system_stm32f4xx.o main.o rcc.o uart.o gpio.o spi.o ad9102-reg.o ad9102-spi.o calibration.o dds-sine.o	dds-period.o dds-ram.o # $(Proj_Name)-as.o pattern.o 
-	arm-none-eabi-gcc $(LDFLAGS) -o $(Proj_Name).elf -Tmem.ld $(Startup_FileName).o system_stm32f4xx.o main.o rcc.o uart.o gpio.o spi.o ad9102-reg.o ad9102-spi.o calibration.o dds-sine.o dds-period.o dds-ram.o $(Lib_M) # $(Proj_Name)-as.o
+$(Proj_Name):$(Startup_FileName).o system_stm32f4xx.o main.o rcc.o uart.o gpio.o spi.o ad9102-reg.o ad9102-spi.o calibration.o dds-sine.o	dds-period.o dds-ram.o dds-tw.o # $(Proj_Name)-as.o pattern.o 
+	arm-none-eabi-gcc $(LDFLAGS) -o $(Proj_Name).elf -Tmem.ld $(Startup_FileName).o system_stm32f4xx.o main.o rcc.o uart.o gpio.o spi.o ad9102-reg.o ad9102-spi.o calibration.o dds-sine.o dds-period.o dds-ram.o dds-tw.o $(Lib_M) # $(Proj_Name)-as.o
 	arm-none-eabi-objcopy -O binary $(Proj_Name).elf $(Proj_Name).bin
 
 $(Startup_FileName).o:
@@ -71,8 +71,9 @@ dds-sine.o:
 dds-period.o:
 	arm-none-eabi-gcc $(COREFLAGS) -I$(CMSIS_Device_Include) -I$(CMSIS_Core_Include) -I$(Proj_Dir) -c -g -o $@ pattern/dds-period.c -D$(Target)
 dds-ram.o:
-	arm-none-eabi-gcc $(COREFLAGS) -I$(CMSIS_Device_Include) -I$(CMSIS_Core_Include) -I$(Proj_Dir) -c -g -o $@ pattern/dds-ram.c -D$(Target)			
-	
+	arm-none-eabi-gcc $(COREFLAGS) -I$(CMSIS_Device_Include) -I$(CMSIS_Core_Include) -I$(Proj_Dir) -c -g -o $@ pattern/dds-ram.c -D$(Target)
+dds-tw.o:
+	arm-none-eabi-gcc $(COREFLAGS) -I$(CMSIS_Device_Include) -I$(CMSIS_Core_Include) -I$(Proj_Dir) -c -g -o $@ pattern/dds-tw.c -D$(Target)
 		
 # $(Proj_Name)-as.o:
 # 	arm-none-eabi-as -mcpu=cortex-m4 -o $@ main.s

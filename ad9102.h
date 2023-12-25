@@ -101,6 +101,23 @@ typedef struct ad9102_dds_param
 	uint16_t dds_cyc_fill;
 } ad9102_dds_param_t;
 
+typedef struct ad9102_dds_tw
+{
+	int f_clkp;
+	/*	*/
+	uint8_t is_tw;
+	/*	zero frequency or tw	*/
+	int x_zero;
+	/*	frequency or tw increment	*/
+	int x_inc;
+	/*	number of frequencies	or tw*/
+	int x_num;
+	/*	pattern period (s)	*/
+	float pattern_period;
+	/*	start delay relative pattern period	*/
+	float start_delay;
+} ad9102_dds_tw_t;
+
 void ad9102_map_init();
 /*	prepare SPI buffers for communication with using stm32 functions	*/
 void ad9102_prepare_spi_data(uint16_t * data);
@@ -120,4 +137,5 @@ int ad9102_calibration();
 void ad9102_pattern_dds_sine(uint32_t f_clkp,uint32_t f_out);
 void ad9102_pattern_dds_period(ad9102_dds_param_t * param);
 void ad9102_pattern_dds_ram(ad9102_dds_param_t * param);
+void ad9102_pattern_dds_tw(ad9102_dds_tw_t * param);
 #endif

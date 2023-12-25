@@ -5,6 +5,10 @@
 /*
 * Configure DAC output as prestored waveform using START_DELAY and PATTERN_PERIOD.
 * DDS output (sine wave) is used as prestored waveform.
+*	Tuning words for DDS are stored in SRAM. The following format of tuning word are used:
+*		DDSTW={RAM[13:0],10'b0}
+*	The base frequency is 23437500 Hz (DDSTW: 0x960000). Tuning word increment (decrement) is 0x1000.
+* Frequency increment (decrement) corresponding this change of tuning word is about 9766 Hz. 100 different frequencies are used.
 */
 
 extern ad9102_reg_t ad9102_reg[AD9102_REG_NUM];
@@ -13,19 +17,21 @@ extern ad9102_map_t ad9102_map;
 /*
 	Params:
 */
-void ad9102_pattern_dds_period(ad9102_dds_param_t * param){
+void ad9102_pattern_dds_tw(ad9102_dds_tw_t * param){
 	/*	number of clocks in pattern period	*/
 	uint32_t num_clkp_pattern;
 	/*	number of clocks in start delay	*/
 	uint32_t num_clkp_delay;
-	/*	tuning word	*/
-	uint32_t DDS_TW;
+	/*	tuning word for specified frequency	*/
+	int dds_tw;
 	/*	*/
-	uint32_t f_out;
+	int f,tw;
 	/*	start delay interval (s)	*/
 	float start_delay_time;
 	/*	time interval on which DDS is active	*/
 	float dds_play_time;
+	/*	*/
+	float ratio;
 	int i;
 	
 	/*	number of clocks inside the only pattern period	*/
@@ -36,17 +42,6 @@ void ad9102_pattern_dds_period(ad9102_dds_param_t * param){
 	num_clkp_delay=(uint32_t)(param->f_clkp*start_delay_time);
 	/*	*/
 	dds_play_time=param->pattern_period-start_delay_time;
-	if(!param->dds_cyc_out){
-		/*	number of cycles at specified zero and filling frequncies	*/
-		f_out=param->f_zero+param->f_fill;
-		param->dds_cyc_out=(uint16_t)(f_out*dds_play_time);
-		param->dds_cyc_fill=(uint16_t)(param->f_fill*dds_play_time);
-	}
-	else{
-		/*	DDS filling frequency at specified number of cycles	and zero frequency	*/
-		f_out=(uint32_t)(1.0*param->dds_cyc_out/dds_play_time);
-		param->f_fill=f_out-param->f_zero;
-	}
 
 	/*	PARTTERN_RPT-Pattern continuously runs	*/
 	i=ad9102_map[PAT_TYPE];
@@ -61,9 +56,9 @@ void ad9102_pattern_dds_period(ad9102_dds_param_t * param){
 	*/
 	
 	i=ad9102_map[WAV_CONFIG];
-	/*	prestored waveform using START_DELAY and PATTERN_PERIOD	*/
+	/*	prestored waveform using START_DELAY and PATTERN_PERIOD modulated by waveform in SRAM	*/
 	ad9102_reg[i].value&=~0x3;
-	ad9102_reg[i].value|=0x2;
+	ad9102_reg[i].value|=0x3;
 	/*	DDS output as prestored waveform	*/
 	ad9102_reg[i].value&=~(0x3<<4);
 	ad9102_reg[i].value|=(0x3<<4);
@@ -88,17 +83,58 @@ void ad9102_pattern_dds_period(ad9102_dds_param_t * param){
 	ad9102_reg[i].value=(uint16_t)(((num_clkp_delay/0xf)&0xffff));
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
-	/*	configure DDS tuning word (system clock established manually)	*/
-	DDS_TW=ad9102_dds_tw(f_out,param->f_clkp);
-	i=ad9102_map[DDS_TW32];
-	ad9102_reg[i].value=(DDS_TW&0xffff00)>>8;
-	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
-	i=ad9102_map[DDS_TW1];
-	ad9102_reg[i].value|=(DDS_TW&0xff)<<8;
+	/*	establish the start and stop address	*/
+	i=ad9102_map[START_ADDR];
+	ad9102_reg[i].value&=~(0xfff<<4);
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
-	/*	number of DDS cycles inside the only pattern period	*/
+	i=ad9102_map[STOP_ADDR];
+	ad9102_reg[i].value&=~(0xfff<<4);
+	ad9102_reg[i].value|=(0x32<<4);
+	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+	
+	/*	configure DDS tuning word in SRAM	*/
+	i=ad9102_map[DDS_CONFIG];
+	ad9102_reg[i].value|=0x4;
+	ad9102_reg[i].value|=0x1;
+	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+	/*	DDSTW={RAM[13:0],10'b0}	*/
+	i=ad9102_map[TW_RAM_CONFIG];
+	ad9102_reg[i].value&=~0xf;
+	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+	
+	/*	number of DDS cycles inside the only pattern period (not in use)	*/
 	i=ad9102_map[DDS_CYC];
-	ad9102_reg[i].value=param->dds_cyc_out;
+	ad9102_reg[i].value=0x10;
+	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+	
+	/*	enable access to SRAM from SPI	*/
+	i=ad9102_map[PAT_STATUS];
+	ad9102_reg[i].value&=~0x1;
+	ad9102_reg[i].value|=(0x1<<2);
+	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+	
+	/*	store tuning words in SRAM	*/
+	for(i=0;i<=param->x_num;i++){
+		if(param->is_tw){
+			tw=param->x_zero+i*param->x_inc;
+			tw&=0xffffff;
+			/*	store highest 14-bit in SRAM	*/
+			ad9102_write_reg(AD9102_SRAM_BASE_ADDR+i,((tw>>10)<<2));
+		}
+		else{
+			/*	current frequency	*/
+			f=param->x_zero+i*param->x_inc;
+			/*	tuning word for current frequency	*/
+			ratio=(1.0*f)/param->f_clkp;
+			dds_tw=(int)(0x1000000*ratio);
+			/*	store highest 14-bit in SRAM	*/
+			ad9102_write_reg(AD9102_SRAM_BASE_ADDR+i,((dds_tw>>10)<<2));
+		}
+	}
+	
+	/*	disable access to memory from SPI	*/
+	i=ad9102_map[PAT_STATUS];
+	ad9102_reg[i].value&=~(0x1<<2);
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 }
