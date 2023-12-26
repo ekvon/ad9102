@@ -90,7 +90,7 @@ void ad9102_pattern_dds_tw(ad9102_dds_tw_t * param){
 	
 	i=ad9102_map[STOP_ADDR];
 	ad9102_reg[i].value&=~(0xfff<<4);
-	ad9102_reg[i].value|=(0x32<<4);
+	ad9102_reg[i].value|=0xfff;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*	configure DDS tuning word in SRAM	*/
@@ -100,12 +100,12 @@ void ad9102_pattern_dds_tw(ad9102_dds_tw_t * param){
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	/*	DDSTW={RAM[13:0],10'b0}	*/
 	i=ad9102_map[TW_RAM_CONFIG];
-	ad9102_reg[i].value&=~0xf;
+	ad9102_reg[i].value&=~0x1f;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*	number of DDS cycles inside the only pattern period (not in use)	*/
 	i=ad9102_map[DDS_CYC];
-	ad9102_reg[i].value=0x10;
+	ad9102_reg[i].value=0x1000;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*	enable access to SRAM from SPI	*/

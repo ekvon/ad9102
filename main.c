@@ -150,7 +150,7 @@ void main(void)
 	/*	'Vref' level	*/
 	i=ad9102_map[REFADJ];
 	ad9102_reg[i].value&=~0x3f;
-	ad9102_reg[i].value|=0x1f;
+	ad9102_reg[i].value|=0x1e;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*
@@ -160,7 +160,7 @@ void main(void)
 	*/
 	i=ad9102_map[DACRSET];
 	/*	ad9102_reg[i].value=0x800c;	*/
-	ad9102_reg[i].value=0x8001;
+	ad9102_reg[i].value=0x8000;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*
@@ -170,7 +170,7 @@ void main(void)
 	*/
 	i=ad9102_map[DACAGAIN];
 	ad9102_reg[i].value&=~0x7f;
-	ad9102_reg[i].value=0x7f;
+	ad9102_reg[i].value|=0x1;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*
@@ -181,8 +181,14 @@ void main(void)
 	ad9102_reg[i].value|=(0xc00<<4);
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
+	/*	*/
+	i=ad9102_map[DACDOF];
+	ad9102_reg[i].value|=(0xfff<<4);
+	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+	
 	/*	sine wave as DAC output	*/
-	/*	ad9102_pattern_dds_sine(SYSTEM_CORE_CLOCK,874000);	*/
+	/*	ad9102_pattern_dds_sine(SYSTEM_CORE_CLOCK,23416000);	*/
+	
 	/*	DDS output using PATTERN_PERIOD and START_DELAY	*/
 	ad9102_dds_tw_t param;
 	param.f_clkp=40000000;
@@ -190,9 +196,9 @@ void main(void)
 	/*	base tw	*/
 	param.x_zero=0x960000;
 	/*	tw increment	*/
-	param.x_inc=0x1000;
+	param.x_inc=0x10;
 	/*	number of tw	*/
-	param.x_num=50;
+	param.x_num=0x1000;
 	/*	1/256	*/
 	param.pattern_period=/*	0.00390625	*/0.0001024;
 	/*	delay is half of pattern period	*/
