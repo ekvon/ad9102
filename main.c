@@ -147,6 +147,13 @@ void main(void)
 	ad9102_reg[i].value=0;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
+	/*	*/
+	/*
+	i=ad9102_map[CLOCKCONFIG];
+	ad9102_reg[i].value|=(0x1<<3);
+	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+	*/
+	
 	/*	'Vref' level	*/
 	i=ad9102_map[REFADJ];
 	ad9102_reg[i].value&=~0x3f;
@@ -170,7 +177,7 @@ void main(void)
 	*/
 	i=ad9102_map[DACAGAIN];
 	ad9102_reg[i].value&=~0x7f;
-	ad9102_reg[i].value=0x7f;
+	ad9102_reg[i].value=0x1f;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*
@@ -181,20 +188,23 @@ void main(void)
 	ad9102_reg[i].value|=(0xc00<<4);
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
-	/*	sine wave as DAC output	*/
-	/*	ad9102_pattern_dds_sine(SYSTEM_CORE_CLOCK,874000);	*/
 	/*	DDS output using PATTERN_PERIOD and START_DELAY	*/
 	ad9102_dds_param_t param;
 	param.f_clkp=40000000;
-	param.f_zero=23436000;
-	param.f_fill=/*	2000	*/100000;
+	param.f_zero=12152000;
+	param.f_fill=100000;
 	param.dds_cyc_out=0;
 	/*	1/256	*/
-	param.pattern_period=/*	0.00390625	*/0.0001024;
+	param.pattern_period=0.0006154;
 	/*	delay is half of pattern period	*/
 	param.start_delay=0.5;
-	/*	*/
+	
+	/*	DDS output modulated by waveform from RAM	*/
 	ad9102_pattern_dds_ram(&param);
+	
+	/*	sine wave as DAC output	*/
+	/*	ad9102_pattern_dds_sine(SYSTEM_CORE_CLOCK,param.f_zero+param.f_fill);	*/
+	
 	sprintf(buf,"ad9102_pattern_dds: number of cycles is %u\n",param.dds_cyc_out);
 	stm32_usart_tx(buf,0);
 	
@@ -241,6 +251,25 @@ void main(void)
 		);
 		stm32_usart_tx(buf,0);
 	}
+	
+	/*	PAT_STATUS: clear RUN bit and enable read access to SRAM	*/
+	i=ad9102_map[PAT_STATUS];
+	ad9102_reg[i].value&=~0x1;
+	ad9102_reg[i].value|=(0x3<<2);
+	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+	
+	/*	update registers	*/
+	i=ad9102_map[RAMUPDATE];
+	ad9102_reg[i].value=0x1;
+	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+	/*	wait to apply changes	*/
+	while(1){
+		ad9102_read_reg(RAMUPDATE,spi_rx_buf,2);
+		if(!(spi_rx_buf[1]&0x1))
+			break;
+		dummy_loop(0xff);
+	}
+	
 	/*	check SRAM values (first and last address)	*/
 	ad9102_read_reg(0x6000,spi_rx_buf,2);
 	sprintf(buf,"SRAM: addr=0x6000, value={0x%.4x 0x%.4x}\n",
@@ -248,12 +277,28 @@ void main(void)
 		spi_rx_buf[1]
 	);
 	stm32_usart_tx(buf,0);
+	
+	/*	0x6001	*/
+	ad9102_read_reg(0x6001,spi_rx_buf,2);
+	sprintf(buf,"SRAM: addr=0x6001, value={0x%.4x 0x%.4x}\n",
+		spi_rx_buf[0],
+		spi_rx_buf[1]
+	);
+	stm32_usart_tx(buf,0);
+	
+	/*	0x6fff	*/
 	ad9102_read_reg(0x6fff,spi_rx_buf,2);
 	sprintf(buf,"SRAM: addr=0x6fff, value={0x%.4x 0x%.4x}\n",
 		spi_rx_buf[0],
 		spi_rx_buf[1]
 	);
 	stm32_usart_tx(buf,0);
+	/*	disable memory access from SPI port	*/
+	i=ad9102_map[PAT_STATUS];
+	ad9102_reg[i].value&=~0x1;
+	ad9102_reg[i].value&=~(0x3<<2);
+	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+	
 	stm32_usart_tx("Programm is finished\n",0);
 	/*	programm is finished (blink with the green led)	*/
 	stm32_led13_blink(0x8,0xffff);

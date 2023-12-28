@@ -20,6 +20,7 @@
 *		f_clkp*f_out=f_clkp*(f_zero+f_fill)	(4)
 */
 
+extern uint16_t spi_rx_buf[AD9102_SPI_BUF_SIZE];
 extern ad9102_reg_t ad9102_reg[AD9102_REG_NUM];
 extern ad9102_map_t ad9102_map;
 
@@ -132,9 +133,9 @@ void ad9102_pattern_dds_ram(ad9102_dds_param_t * param){
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*	enable DDS MSB	*/
-	/*	i=ad9102_map[DDS_CONFIG];
+	i=ad9102_map[DDS_CONFIG];
 	ad9102_reg[i].value|=(0x1<<2);
-	*/
+	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*	enable access to SRAM from SPI	*/
 	i=ad9102_map[PAT_STATUS];
@@ -142,8 +143,21 @@ void ad9102_pattern_dds_ram(ad9102_dds_param_t * param){
 	ad9102_reg[i].value|=(0x1<<2);
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
+	/*	update registers	*/
+	i=ad9102_map[RAMUPDATE];
+	ad9102_reg[i].value=0x1;
+	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+	/*	wait to apply changes	*/
+	while(1){
+		ad9102_read_reg(RAMUPDATE,spi_rx_buf,2);
+		if(!(spi_rx_buf[1]&0x1))
+			break;
+		dummy_loop(0xff);
+	}
+	
 	/*	create waveform in sram	*/
-	ad9102_ram_waveform_triangle_saw();
+	/*	ad9102_ram_waveform_triangle_saw();	*/
+	ad9102_ram_waveform_ramp_down_saw();
 	
 	/*	disable access to memory	*/
 	ad9102_reg[i].value&=~(0x1<<2);
@@ -165,7 +179,17 @@ void ad9102_ram_waveform_ramp_up_saw(){
 }
 
 void ad9102_ram_waveform_ramp_down_saw(){
-	/*	not realized yet	*/
+	const int max_sram_value=0x3fff;
+	const int sram_linear_step=0x3fff/AD9102_SRAM_SIZE;
+	
+	int value;
+	int i;
+	
+	/*	fill in SRAM with aplitude values	*/
+	for(i=0;i<AD9102_SRAM_SIZE;i++){
+		value=i*sram_linear_step;
+		ad9102_write_reg(AD9102_SRAM_BASE_ADDR+i,(value<<2));
+	}
 }
 
 void ad9102_ram_waveform_triangle_saw(){
