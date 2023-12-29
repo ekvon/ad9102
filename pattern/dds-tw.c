@@ -11,6 +11,7 @@
 * Frequency increment (decrement) corresponding this change of tuning word is about 9766 Hz. 100 different frequencies are used.
 */
 
+extern uint16_t spi_rx_buf[AD9102_SPI_BUF_SIZE];
 extern ad9102_reg_t ad9102_reg[AD9102_REG_NUM];
 extern ad9102_map_t ad9102_map;
 
@@ -95,7 +96,7 @@ void ad9102_pattern_dds_tw(ad9102_dds_tw_t * param){
 	
 	/*	configure DDS tuning word in SRAM	*/
 	i=ad9102_map[DDS_CONFIG];
-	ad9102_reg[i].value|=0x4;
+	/*	ad9102_reg[i].value|=0x4;	*/
 	ad9102_reg[i].value|=0x1;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	/*	DDSTW={RAM[13:0],10'b0}	*/
@@ -114,13 +115,26 @@ void ad9102_pattern_dds_tw(ad9102_dds_tw_t * param){
 	ad9102_reg[i].value|=(0x1<<2);
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
+	/*	update registers	*/
+	i=ad9102_map[RAMUPDATE];
+	ad9102_reg[i].value=0x1;
+	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+	
+	/*	wait to apply changes	*/
+	while(1){
+		ad9102_read_reg(RAMUPDATE,spi_rx_buf,2);
+		if(!(spi_rx_buf[1]&0x1))
+			break;
+		dummy_loop(0xff);
+	}
+	
 	/*	store tuning words in SRAM	*/
 	for(i=0;i<=param->x_num;i++){
 		if(param->is_tw){
 			tw=param->x_zero+i*param->x_inc;
 			tw&=0xffffff;
 			/*	store highest 14-bit in SRAM	*/
-			ad9102_write_reg(AD9102_SRAM_BASE_ADDR+i,((tw>>10)<<2));
+			ad9102_write_reg(param->start_addr+i,((tw>>10)<<2));
 		}
 		else{
 			/*	current frequency	*/
@@ -129,7 +143,7 @@ void ad9102_pattern_dds_tw(ad9102_dds_tw_t * param){
 			ratio=(1.0*f)/param->f_clkp;
 			dds_tw=(int)(0x1000000*ratio);
 			/*	store highest 14-bit in SRAM	*/
-			ad9102_write_reg(AD9102_SRAM_BASE_ADDR+i,((dds_tw>>10)<<2));
+			ad9102_write_reg(param->start_addr+i,((dds_tw>>10)<<2));
 		}
 	}
 	

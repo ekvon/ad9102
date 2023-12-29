@@ -106,6 +106,8 @@ typedef struct ad9102_dds_tw
 	int f_clkp;
 	/*	*/
 	uint8_t is_tw;
+	/*	*/
+	uint16_t start_addr;
 	/*	zero frequency or tw	*/
 	int x_zero;
 	/*	frequency or tw increment	*/

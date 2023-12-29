@@ -160,7 +160,7 @@ void main(void)
 	*/
 	i=ad9102_map[DACRSET];
 	/*	ad9102_reg[i].value=0x800c;	*/
-	ad9102_reg[i].value=0x8000;
+	ad9102_reg[i].value=0x8001;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*
@@ -170,7 +170,7 @@ void main(void)
 	*/
 	i=ad9102_map[DACAGAIN];
 	ad9102_reg[i].value&=~0x7f;
-	ad9102_reg[i].value|=0x1;
+	ad9102_reg[i].value|=0x1f;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*
@@ -192,15 +192,18 @@ void main(void)
 	/*	DDS output using PATTERN_PERIOD and START_DELAY	*/
 	ad9102_dds_tw_t param;
 	param.f_clkp=40000000;
+	param.start_addr=0x6000;
+	/*	fill the all memory with the same value	*/
 	param.is_tw=1;
-	/*	base tw	*/
-	param.x_zero=0x960000;
+	/*	tw	(i=16, f=12308249)	*/
+	/*	tw	(i=32, f=12619629)	*/
+	param.x_zero=0x4ec400;
 	/*	tw increment	*/
-	param.x_inc=0x10;
+	param.x_inc=0;
 	/*	number of tw	*/
-	param.x_num=0x1000;
+	param.x_num=0xfff;
 	/*	1/256	*/
-	param.pattern_period=/*	0.00390625	*/0.0001024;
+	param.pattern_period=/*	0.00390625	*/0.0002048;
 	/*	delay is half of pattern period	*/
 	param.start_delay=0.5;
 	
@@ -249,6 +252,25 @@ void main(void)
 		);
 		stm32_usart_tx(buf,0);
 	}
+	/*	enable access to SRAM in read mode	*/
+		/*	enable access to SRAM from SPI	*/
+	i=ad9102_map[PAT_STATUS];
+	ad9102_reg[i].value&=~0x1;
+	ad9102_reg[i].value|=(0x3<<2);
+	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+	
+	/*	update registers	*/
+	i=ad9102_map[RAMUPDATE];
+	ad9102_reg[i].value=0x1;
+	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+	/*	wait to apply changes	*/
+	while(1){
+		ad9102_read_reg(RAMUPDATE,spi_rx_buf,2);
+		if(!(spi_rx_buf[1]&0x1))
+			break;
+		dummy_loop(0xff);
+	}
+	
 	/*	check SRAM values (first and last address)	*/
 	ad9102_read_reg(0x6000,spi_rx_buf,2);
 	sprintf(buf,"SRAM: addr=0x6000, value={0x%.4x 0x%.4x}\n",
@@ -262,6 +284,7 @@ void main(void)
 		spi_rx_buf[1]
 	);
 	stm32_usart_tx(buf,0);
+	
 	stm32_usart_tx("Programm is finished\n",0);
 	/*	programm is finished (blink with the green led)	*/
 	stm32_led13_blink(0x8,0xffff);
