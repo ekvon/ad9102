@@ -197,7 +197,7 @@ void main(void)
 	param.is_tw=1;
 	/*	tw	(i=16, f=12308249)	*/
 	/*	tw	(i=32, f=12619629)	*/
-	param.x_zero=0x4ec400;
+	param.x_zero=0x4ec600;
 	/*	tw increment	*/
 	param.x_inc=0;
 	/*	number of tw	*/

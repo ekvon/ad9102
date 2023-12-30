@@ -33,7 +33,7 @@ void ad9102_pattern_dds_tw(ad9102_dds_tw_t * param){
 	float dds_play_time;
 	/*	*/
 	float ratio;
-	int i;
+	int i,j;
 	
 	/*	number of clocks inside the only pattern period	*/
 	num_clkp_pattern=(uint32_t)(param->f_clkp*param->pattern_period);
@@ -69,6 +69,7 @@ void ad9102_pattern_dds_tw(ad9102_dds_tw_t * param){
 	/*	PATTERN_PERIOD_BASE	*/
 	ad9102_reg[i].value&=~(0xf<<4);
 	ad9102_reg[i].value|=(0xf<<4);
+	ad9102_reg[i].value|=(0xf<<8);
 	/*	START_DELAY_BASE	*/
 	ad9102_reg[i].value&=~(0xf);
 	ad9102_reg[i].value|=(0xf);
@@ -96,17 +97,19 @@ void ad9102_pattern_dds_tw(ad9102_dds_tw_t * param){
 	
 	/*	configure DDS tuning word in SRAM	*/
 	i=ad9102_map[DDS_CONFIG];
-	/*	ad9102_reg[i].value|=0x4;	*/
+	ad9102_reg[i].value|=(0x1<<2);
 	ad9102_reg[i].value|=0x1;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
-	/*	DDSTW={RAM[13:0],10'b0}	*/
 	i=ad9102_map[TW_RAM_CONFIG];
+	/*	DDSTW={RAM[13:0],10'b0}	*/
 	ad9102_reg[i].value&=~0x1f;
+	/*	DDSTW={DDSTW[23:22],RAM[13:0],8'b0}	*/
+	ad9102_reg[i].value|=0x2;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*	number of DDS cycles inside the only pattern period (not in use)	*/
 	i=ad9102_map[DDS_CYC];
-	ad9102_reg[i].value=0x1000;
+	ad9102_reg[i].value=0x1;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*	enable access to SRAM from SPI	*/
@@ -128,22 +131,35 @@ void ad9102_pattern_dds_tw(ad9102_dds_tw_t * param){
 		dummy_loop(0xff);
 	}
 	
+	/*	index of DDS_TW1 register	*/
+	j=ad9102_map[DDS_TW32];
+	
 	/*	store tuning words in SRAM	*/
 	for(i=0;i<=param->x_num;i++){
 		if(param->is_tw){
 			tw=param->x_zero+i*param->x_inc;
 			tw&=0xffffff;
-			/*	store highest 14-bit in SRAM	*/
-			ad9102_write_reg(param->start_addr+i,((tw>>10)<<2));
+			/*	store 2-bit in DDS_TW32 highest bits	*/
+			ad9102_reg[j].value=(tw&0xc00000)>>8;
+			ad9102_write_reg(ad9102_reg[j].addr,ad9102_reg[j].value);
+			/*	store next 14-bit in SRAM	*/
+			ad9102_write_reg(param->start_addr+i,(((tw&0x3fffff)>>8)<<2));
 		}
 		else{
 			/*	current frequency	*/
 			f=param->x_zero+i*param->x_inc;
 			/*	tuning word for current frequency	*/
 			ratio=(1.0*f)/param->f_clkp;
-			dds_tw=(int)(0x1000000*ratio);
-			/*	store highest 14-bit in SRAM	*/
-			ad9102_write_reg(param->start_addr+i,((dds_tw>>10)<<2));
+			tw=(int)(0x1000000*ratio);
+			tw&=0xffffff;
+			/*	store 2-bit in DDS_TW32 highest bits	(mode 1)	*/
+			ad9102_reg[j].value=(tw&0xc00000)>>8;
+			ad9102_write_reg(ad9102_reg[j].addr,ad9102_reg[j].value);
+			/*	store next 14-bit in SRAM	*/
+			ad9102_write_reg(param->start_addr+i,(((tw&0x3fffff)>>8)<<2));
+			
+			/*	store highest 14-bit in SRAM (mode 0)	*/
+			/*	ad9102_write_reg(param->start_addr+i,((tw>>10)<<2));	*/
 		}
 	}
 	
