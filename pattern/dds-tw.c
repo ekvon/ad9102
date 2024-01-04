@@ -69,7 +69,7 @@ void ad9102_pattern_dds_tw(ad9102_dds_tw_t * param){
 	/*	PATTERN_PERIOD_BASE	*/
 	ad9102_reg[i].value&=~(0xf<<4);
 	ad9102_reg[i].value|=(0xf<<4);
-	ad9102_reg[i].value|=(0xf<<8);
+	ad9102_reg[i].value|=(0x1<<8);
 	/*	START_DELAY_BASE	*/
 	ad9102_reg[i].value&=~(0xf);
 	ad9102_reg[i].value|=(0xf);
@@ -92,7 +92,7 @@ void ad9102_pattern_dds_tw(ad9102_dds_tw_t * param){
 	
 	i=ad9102_map[STOP_ADDR];
 	ad9102_reg[i].value&=~(0xfff<<4);
-	ad9102_reg[i].value|=0xfff;
+	ad9102_reg[i].value|=(0xfff<<4);
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*	configure DDS tuning word in SRAM	*/
