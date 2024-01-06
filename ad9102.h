@@ -114,6 +114,8 @@ typedef struct ad9102_dds_tw
 	int x_inc;
 	/*	number of frequencies	or tw*/
 	int x_num;
+	/*	number of repetitions for each tw or frequency	*/
+	int x_repeat;
 	/*	pattern period (s)	*/
 	float pattern_period;
 	/*	start delay relative pattern period	*/

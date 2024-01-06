@@ -197,13 +197,15 @@ void main(void)
 	param.is_tw=1;
 	/*	tw	(i=16, f=12308249)	*/
 	/*	tw	(i=32, f=12619629)	*/
-	param.x_zero=0x4ec600;
+	param.x_zero=0x4dd600;
 	/*	tw increment	*/
-	param.x_inc=0;
+	param.x_inc=0x1000;
 	/*	number of tw	*/
-	param.x_num=0xfff;
+	param.x_num=0x2;
+	/*	repeat each tw	*/
+	param.x_repeat=0x800;
 	/*	1/256	*/
-	param.pattern_period=/*	0.00390625	*/0.0002048;
+	param.pattern_period=/*	0.0002048	*/0.0032768;
 	/*	delay is half of pattern period	*/
 	param.start_delay=0.5;
 	
