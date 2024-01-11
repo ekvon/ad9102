@@ -6,7 +6,7 @@ int stm32_rcc_init(){
 	RCC->AHB1ENR|=RCC_AHB1ENR_GPIOAEN;
 	RCC->AHB1ENR|=RCC_AHB1ENR_GPIOBEN;
 	RCC->APB2ENR|=RCC_APB2ENR_SPI1EN;
-	/*	HSE is used as source for MC0_1	(reset value)	*/
+	/*	PLL is used as source for MC0_1	(current value is 40MHz). PLL clock is also system clock	*/
 	RCC->CFGR|=(0x3<<21);
 	/*	MCO_1 prescaler is not used	*/
 	RCC->CFGR&=~(0x1<<26);

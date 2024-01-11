@@ -23,7 +23,7 @@
 #define RAMUPDATE 0x1d
 #define PAT_STATUS 0x1e
 #define PAT_TYPE 0x1f
-#define PATTERN_ONLY 0x20
+#define PATTERN_DLY 0x20
 #define DACDOF 0x25
 #define WAV_CONFIG 0x27
 #define PAT_TIMEBASE 0x28
@@ -109,17 +109,21 @@ typedef struct ad9102_dds_tw
 	/*	*/
 	uint16_t start_addr;
 	/*	zero frequency or tw	*/
-	int x_zero;
+	int zero;
 	/*	frequency or tw increment	*/
-	int x_inc;
+	int inc;
 	/*	number of frequencies	or tw*/
-	int x_num;
+	int num;
 	/*	number of repetitions for each tw or frequency	*/
-	int x_repeat;
+	int repeat;
 	/*	pattern period (s)	*/
 	float pattern_period;
 	/*	start delay relative pattern period	*/
 	float start_delay;
+	/*	output parameter	*/
+	uint32_t num_clkp_pattern;
+	/*	output parameter	*/
+	uint32_t num_clkp_delay;
 } ad9102_dds_tw_t;
 
 void ad9102_map_init();
@@ -131,6 +135,8 @@ void ad9102_read_reg(uint16_t addr,uint16_t buf[],uint8_t size);
 void ad9102_read_reg16(uint16_t addr,uint16_t buf[],uint8_t size);
 /*	SPI communication using CMSIS directly (8-bit)	*/
 void ad9102_write_reg(uint16_t addr,uint16_t value);
+/*	this function is used to write data to SRAM only	*/
+void ad9102_write_reg_ext(uint16_t addr,uint16_t * value,uint16_t len);
 /*	SPI communication using CMSIS directly (16-bit)	*/
 void ad9102_write_reg16(uint16_t addr,uint16_t value);
 /*	DDS tuning word calculation	*/

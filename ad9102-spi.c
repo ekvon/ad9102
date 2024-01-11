@@ -197,6 +197,64 @@ void ad9102_write_reg(uint16_t addr,uint16_t value){
 	SPI1->CR1&=~SPI_CR1_SPE;
 }
 
+void ad9102_write_reg_ext(uint16_t addr,uint16_t * value,uint16_t len){
+	/*	used to read data register	*/
+	uint8_t dr;
+	/*	iterator	*/
+	uint16_t i;
+	
+	/*	clear the highest bit	*/
+	addr&=0x7fff;
+	/*	enable SPI and start transaction	*/
+	SPI1->CR1|=SPI_CR1_SPE;
+	stm32_spi_cs_low();
+	while(!(SPI1->SR&SPI_SR_TXE)){
+	}
+	/*	send the high byte of address	*/
+	SPI1->DR=(uint8_t)(addr>>8);
+	while(!(SPI1->SR&SPI_SR_TXE)){
+	}
+	/*	send the low byte of address	*/
+	SPI1->DR=(uint8_t)(addr&0xff);
+	/*	read data register (full-duplex mode)	*/
+	/*
+	while(!(SPI1->SR&(SPI_SR_RXNE))){
+	}
+	dr=(SPI1->DR);
+	*/
+	while(!(SPI1->SR&SPI_SR_TXE)){
+	}
+	for(i=0;i<len;i++){
+		/*	send the high byte of value	*/
+		(SPI1->DR)=(uint8_t)(*(value+i)>>8);
+		/*	read data register (full-duplex mode)	*/
+		/*
+		while(!(SPI1->SR&(SPI_SR_RXNE))){
+		}
+		dr=(SPI1->DR);
+		*/
+		while(!(SPI1->SR&SPI_SR_TXE)){
+		}
+		/*	send the low byte of value	*/
+		(SPI1->DR)=(uint8_t)(*(value+i)&0xff);
+		/*	read data register (full-duplex mode)	*/
+		/*
+		while(!(SPI1->SR&(SPI_SR_RXNE))){
+		}
+		dr=(SPI1->DR);
+		*/
+		while(!(SPI1->SR&SPI_SR_TXE)){
+		}
+	}
+	while(SPI1->SR&(SPI_SR_BSY)){
+	}
+	(void)SPI1->DR;
+	(void)SPI1->SR;
+	/*	finish transaction and disable SPI	*/
+	stm32_spi_cs_high();
+	SPI1->CR1&=~SPI_CR1_SPE;
+}
+
 void ad9102_write_reg16(uint16_t addr,uint16_t value){
 	/*	clear the highest bit	*/
 	addr&=0x7fff;

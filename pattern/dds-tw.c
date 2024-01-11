@@ -19,10 +19,6 @@ extern ad9102_map_t ad9102_map;
 	Params:
 */
 void ad9102_pattern_dds_tw(ad9102_dds_tw_t * param){
-	/*	number of clocks in pattern period	*/
-	uint32_t num_clkp_pattern;
-	/*	number of clocks in start delay	*/
-	uint32_t num_clkp_delay;
 	/*	address in SRAM	*/
 	uint16_t addr_off;
 	/*	*/
@@ -36,11 +32,11 @@ void ad9102_pattern_dds_tw(ad9102_dds_tw_t * param){
 	int i,j;
 	
 	/*	number of clocks inside the only pattern period	*/
-	num_clkp_pattern=(uint32_t)(param->f_clkp*param->pattern_period);
+	param->num_clkp_pattern=(uint32_t)(param->f_clkp*param->pattern_period);
 	/*	start delay in seconds	*/
 	start_delay_time=param->pattern_period*param->start_delay;
 	/*	number of clocks inside the start delay	*/
-	num_clkp_delay=(uint32_t)(param->f_clkp*start_delay_time);
+	param->num_clkp_delay=(uint32_t)(param->f_clkp*start_delay_time);
 	/*	*/
 	dds_play_time=param->pattern_period-start_delay_time;
 
@@ -77,12 +73,12 @@ void ad9102_pattern_dds_tw(ad9102_dds_tw_t * param){
 	
 	i=ad9102_map[PAT_PERIOD];
 	/*	store number of clocks divided on base number	*/
-	ad9102_reg[i].value=(uint16_t)(((num_clkp_pattern/0xf)&0xffff));
+	ad9102_reg[i].value=(uint16_t)(((param->num_clkp_pattern/0xf)&0xffff));
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 
 	i=ad9102_map[START_DELAY];
 	/*	store number of clocks divided on base number	*/
-	ad9102_reg[i].value=(uint16_t)(((num_clkp_delay/0xf)&0xffff));
+	ad9102_reg[i].value=(uint16_t)(((param->num_clkp_delay/0xf)&0xffff));
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*	establish the start and stop address	*/
@@ -92,7 +88,7 @@ void ad9102_pattern_dds_tw(ad9102_dds_tw_t * param){
 	
 	i=ad9102_map[STOP_ADDR];
 	ad9102_reg[i].value&=~(0xfff<<4);
-	ad9102_reg[i].value|=(0xfff<<4);
+	ad9102_reg[i].value|=(0x800<<4);
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*	configure DDS tuning word in SRAM	*/
@@ -135,7 +131,7 @@ void ad9102_pattern_dds_tw(ad9102_dds_tw_t * param){
 	j=ad9102_map[DDS_TW32];
 	/*	store 2-bit in DDS_TW32 highest bits the only time	*/
 	if(param->is_tw){
-		tw=param->x_zero;
+		tw=param->zero;
 		tw&=0xffffff;
 		/*	store 2-bit in DDS_TW32 highest bits	*/
 		ad9102_reg[j].value=(tw&0xc00000)>>8;
@@ -143,7 +139,7 @@ void ad9102_pattern_dds_tw(ad9102_dds_tw_t * param){
 	}
 	else{
 		/*	current frequency	*/
-		f=param->x_zero;
+		f=param->zero;
 		/*	tuning word for current frequency	*/
 		ratio=(1.0*f)/param->f_clkp;
 		tw=(int)(0x1000000*ratio);
@@ -155,24 +151,24 @@ void ad9102_pattern_dds_tw(ad9102_dds_tw_t * param){
 	/*	now variable 'j' is free	*/
 	
 	/*	store tuning words in SRAM	*/
-	for(i=0;i<param->x_num;i++){
+	for(i=0;i<param->num;i++){
 		/*	prepare current tuning word	*/
 		if(param->is_tw){
-			tw=param->x_zero+i*param->x_inc;
+			tw=param->zero+i*param->inc;
 			tw&=0xffffff;
 		}
 		else{
 			/*	current frequency	*/
-			f=param->x_zero+i*param->x_inc;
+			f=param->zero+i*param->inc;
 			/*	tuning word for current frequency	*/
 			ratio=(1.0*f)/param->f_clkp;
 			tw=(int)(0x1000000*ratio);
 			tw&=0xffffff;
 		}
 		
-		/*	store current tuning word in adjacent addresses	'param->x_repeat' times	*/
-		for(j=0;j<param->x_repeat;j++){
-			addr_off=(uint16_t)(i*param->x_repeat+j);
+		/*	store current tuning word in adjacent addresses	'param->repeat' times	*/
+		for(j=0;j<param->repeat;j++){
+			addr_off=(uint16_t)(i*param->repeat+j);
 			if(0xfff<addr_off)
 				/*	memory is exhausted (invalid configuration)	*/
 				continue;
