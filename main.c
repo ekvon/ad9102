@@ -9,6 +9,8 @@
 /*	global variables	*/
 char buf[MODEM_CHAR_BUF_SIZE];
 uint16_t spi_rx_buf[AD9102_SPI_BUF_SIZE];
+uint16_t pattern_count;
+uint8_t SysTick_Delay;
 
 ad9102_spi_data_t spi_data;
 extern ad9102_reg_t ad9102_reg[AD9102_REG_NUM];
@@ -16,8 +18,8 @@ extern ad9102_map_t ad9102_map;
 
 /*	not in use	*/
 void SysTick_Handler(){
-	stm32_usart_tx("SysTick_Handler is used\n",0);
-	/*	disable the timer	*/
+	SysTick_Delay=0;
+	/*	just disable the timer	*/
 	SysTick->CTRL&=~SysTick_CTRL_ENABLE_Msk;
 }
 
@@ -29,7 +31,7 @@ void main(void)
 	/*	use to write data to the only register	*/
 	uint16_t value;
 	/*	used to define DDS_TW	*/
-	uint32_t f_dds,f_clkp,DDS_TW;
+	uint32_t f_out,f_clkp,DDS_TW;
 	/*	calibration result	*/
 	ad9102_cal_res_t cal_res;
 	
@@ -192,10 +194,10 @@ void main(void)
 	ad9102_dds_param_t param;
 	param.f_clkp=40000000;
 	param.f_zero=12152000;
-	param.f_fill=100000;
+	param.f_fill=10000;
 	param.dds_cyc_out=0;
 	/*	1/256	*/
-	param.pattern_period=0.0006154;
+	param.pattern_period=0.0032768;
 	/*	delay is half of pattern period	*/
 	param.start_delay=0.5;
 	
@@ -207,6 +209,23 @@ void main(void)
 	
 	sprintf(buf,"ad9102_pattern_dds: number of cycles is %u\n",param.dds_cyc_out);
 	stm32_usart_tx(buf,0);
+	
+	/*	PARTTERN_RPT: Pattern repeats finite number of times	*/
+	i=ad9102_map[PAT_TYPE];
+	ad9102_reg[i].value=0x1;
+	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+	
+	/*	used when pattern repeats finite number of times (play the only pattern)	*/
+	i=ad9102_map[DAC_PAT];
+	ad9102_reg[i].value&=~0xffff;
+	ad9102_reg[i].value|=0x1;
+	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+	
+	/*	PATTERN_DLY: set minimal value	*/
+	i=ad9102_map[PATTERN_DLY];
+	ad9102_reg[i].value&=~0xffff;
+	ad9102_reg[i].value|=0x1;
+	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*	PAT_STATUS (0x1f): RUN=1	*/
 	i=ad9102_map[PAT_STATUS];
@@ -224,16 +243,83 @@ void main(void)
 			break;
 		dummy_loop(0xff);
 	}
+	/*	initialize SysTickTimer but don't start it	*/
+	SysTick->LOAD  = (uint32_t)(param.num_clkp_pattern);
+  NVIC_SetPriority (SysTick_IRQn, (1UL << __NVIC_PRIO_BITS) - 1UL);
+  SysTick->VAL   = 0UL;
+  SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
+                   SysTick_CTRL_TICKINT_Msk;
 	
-	/*	play the specified pattern	*/
-	AD9102_Trigger_Low;
-	/*	time delay for gnuradio	*/
-	dummy_loop(0xfffffff);
-	/*	stop play the pattern (the RUN bit is not cleared)	*/
+	pattern_count=0x6;
+	while(0<pattern_count){
+		param.f_fill+=10000;
+		f_out=param.f_zero+param.f_fill;
+		/*	save new tuning word value to shadow registers	*/
+		/*
+		DDS_TW=ad9102_dds_tw(f_out,param.f_clkp);
+		i=ad9102_map[DDS_TW32];
+		ad9102_reg[i].value&=~0xffff;
+		ad9102_reg[i].value=(DDS_TW&0xffff00)>>8;
+		ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+		i=ad9102_map[DDS_TW1];
+		ad9102_reg[i].value&=~0xffff;
+		ad9102_reg[i].value|=(DDS_TW&0xff)<<8;
+		ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+		*/
+		/*	establish RUN bit	*/
+		/*
+		i=ad9102_map[PAT_STATUS];
+		ad9102_reg[i].value|=0x1;
+		ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+		*/
+		AD9102_Trigger_Low;
+		/*	wait for pattern begining	*/
+		while(1){
+			/*	clear SPI buffer	*/
+			memset(spi_rx_buf,0,AD9102_SPI_BUF_SIZE);	
+			ad9102_read_reg(PAT_STATUS,spi_rx_buf,2);
+			/*	check the RUN bit (it MUST be established)	*/
+			if(!(spi_rx_buf[1]&0x1))
+				continue;
+			if((spi_rx_buf[1]&0x2))
+				break;
+		}
+		SysTick_Delay=1;
+		/*	start SysTickHandler	*/
+		SysTick->CTRL|=SysTick_CTRL_ENABLE_Msk;
+		while(SysTick_Delay){
+		}
+		/*	wait for pattern end	*/
+		while(1){
+			/*	clear SPI buffer	*/
+			memset(spi_rx_buf,0,AD9102_SPI_BUF_SIZE);	
+			ad9102_read_reg(PAT_STATUS,spi_rx_buf,2);
+			/*	check the RUN bit (it MUST be established)	*/
+			if(!(spi_rx_buf[1]&0x1))
+				continue;
+			if(!(spi_rx_buf[1]&0x2))
+				break;
+		}
+		/*	turn off pattern generator and update active registers automatically	*/
+		AD9102_Trigger_High;
+		/*	clear RUN bit	*/
+		/*
+		i=ad9102_map[PAT_STATUS];
+		ad9102_reg[i].value&=~0x1;
+		ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+		*/
+		/*	explicitly update registers	*/	
+		/*
+		i=ad9102_map[RAMUPDATE];
+		ad9102_reg[i].value=0x1;
+		ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+		*/
+		/*	*/
+		pattern_count--;
+	}
+	
+	/*	turn off pattern generator and update active registers automatically	*/
 	AD9102_Trigger_High;
-	/*	just in case	*/
-	dummy_loop(0xff);
-
 	/*	debug output	*/
 	stm32_usart_tx("\n",0);
 	stm32_usart_tx("Registers updated values\n",0);	

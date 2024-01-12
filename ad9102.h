@@ -23,7 +23,7 @@
 #define RAMUPDATE 0x1d
 #define PAT_STATUS 0x1e
 #define PAT_TYPE 0x1f
-#define PATTERN_ONLY 0x20
+#define PATTERN_DLY 0x20
 #define DACDOF 0x25
 #define WAV_CONFIG 0x27
 #define PAT_TIMEBASE 0x28
@@ -95,6 +95,10 @@ typedef struct ad9102_dds_param
 	float pattern_period;
 	/*	start delay relative pattern period	*/
 	float start_delay;
+	/*	*/
+	uint32_t num_clkp_pattern;
+	/*	*/
+	uint32_t num_clkp_delay;
 	/*	number of DDS cycles inside the pattern	*/
 	uint16_t dds_cyc_out;
 	/*	number of DDS cycles after heterodin	*/
