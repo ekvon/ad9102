@@ -34,6 +34,8 @@ void main(void)
 	uint32_t f_out,f_clkp,DDS_TW;
 	/*	calibration result	*/
 	ad9102_cal_res_t cal_res;
+	/*	*/
+	float dds_play_time, dds_delay_time;
 	
 	/*	PLLCLK settings	*/
 	stm32_pll_t stm32_pll;
@@ -194,7 +196,7 @@ void main(void)
 	ad9102_dds_param_t param;
 	param.f_clkp=40000000;
 	param.f_zero=12152000;
-	param.f_fill=10000;
+	param.f_fill=0;
 	param.dds_cyc_out=0;
 	/*	1/256	*/
 	param.pattern_period=0.0032768;
@@ -249,13 +251,16 @@ void main(void)
   SysTick->VAL   = 0UL;
   SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
                    SysTick_CTRL_TICKINT_Msk;
-	
-	pattern_count=0x6;
+
+		
+	dds_delay_time=param.pattern_period*param.start_delay;
+	dds_play_time=param.pattern_period-dds_delay_time;
+	pattern_count=0x3;
 	while(0<pattern_count){
-		param.f_fill+=10000;
+		param.f_fill+=160000;
 		f_out=param.f_zero+param.f_fill;
+		
 		/*	save new tuning word value to shadow registers	*/
-		/*
 		DDS_TW=ad9102_dds_tw(f_out,param.f_clkp);
 		i=ad9102_map[DDS_TW32];
 		ad9102_reg[i].value&=~0xffff;
@@ -265,13 +270,21 @@ void main(void)
 		ad9102_reg[i].value&=~0xffff;
 		ad9102_reg[i].value|=(DDS_TW&0xff)<<8;
 		ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
-		*/
-		/*	establish RUN bit	*/
+		
+		
 		/*
+		i=ad9102_map[DDS_CYC];
+		ad9102_reg[i].value&=~0xffff;
+		ad9102_reg[i].value=(uint16_t)(f_out*dds_play_time);
+		ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+		*/
+		
+		
+		/*	establish RUN bit	*/
 		i=ad9102_map[PAT_STATUS];
 		ad9102_reg[i].value|=0x1;
 		ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
-		*/
+		
 		AD9102_Trigger_Low;
 		/*	wait for pattern begining	*/
 		while(1){
@@ -289,6 +302,7 @@ void main(void)
 		SysTick->CTRL|=SysTick_CTRL_ENABLE_Msk;
 		while(SysTick_Delay){
 		}
+
 		/*	wait for pattern end	*/
 		while(1){
 			/*	clear SPI buffer	*/
@@ -302,18 +316,16 @@ void main(void)
 		}
 		/*	turn off pattern generator and update active registers automatically	*/
 		AD9102_Trigger_High;
-		/*	clear RUN bit	*/
-		/*
+
+		/*	clear RUN bit	to rewrite tuning word value (hypothesis)	*/
 		i=ad9102_map[PAT_STATUS];
 		ad9102_reg[i].value&=~0x1;
 		ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
-		*/
+		
 		/*	explicitly update registers	*/	
-		/*
 		i=ad9102_map[RAMUPDATE];
 		ad9102_reg[i].value=0x1;
 		ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
-		*/
 		/*	*/
 		pattern_count--;
 	}
@@ -340,7 +352,7 @@ void main(void)
 	
 	/*	PAT_STATUS: clear RUN bit and enable read access to SRAM	*/
 	i=ad9102_map[PAT_STATUS];
-	ad9102_reg[i].value&=~0x1;
+	/*	ad9102_reg[i].value&=~0x1;	*/
 	ad9102_reg[i].value|=(0x3<<2);
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	

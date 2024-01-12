@@ -104,7 +104,7 @@ void ad9102_pattern_dds_ram(ad9102_dds_param_t * param){
 	
 	/*	number of DDS cycles inside the only pattern period	*/
 	i=ad9102_map[DDS_CYC];
-	ad9102_reg[i].value=param->dds_cyc_out;
+	ad9102_reg[i].value=param->dds_cyc_out/2;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*	establish the start and stop address	*/
@@ -118,9 +118,11 @@ void ad9102_pattern_dds_ram(ad9102_dds_param_t * param){
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*	enable DDS MSB	*/
+	/*
 	i=ad9102_map[DDS_CONFIG];
 	ad9102_reg[i].value|=(0x1<<2);
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+	*/
 	
 	/*	enable access to SRAM from SPI	*/
 	i=ad9102_map[PAT_STATUS];
