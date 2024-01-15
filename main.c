@@ -195,7 +195,7 @@ void main(void)
 	/*	DDS output using PATTERN_PERIOD and START_DELAY	*/
 	ad9102_dds_param_t param;
 	param.f_clkp=40000000;
-	param.f_zero=12152000;
+	param.f_zero=12152000/*	13432000	*//*	12792000	*/;
 	param.f_fill=0;
 	param.dds_cyc_out=0;
 	/*	1/256	*/
@@ -224,10 +224,12 @@ void main(void)
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*	PATTERN_DLY: set minimal value	*/
+	/*
 	i=ad9102_map[PATTERN_DLY];
 	ad9102_reg[i].value&=~0xffff;
 	ad9102_reg[i].value|=0x1;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+	*/
 	
 	/*	PAT_STATUS (0x1f): RUN=1	*/
 	i=ad9102_map[PAT_STATUS];
@@ -255,9 +257,9 @@ void main(void)
 		
 	dds_delay_time=param.pattern_period*param.start_delay;
 	dds_play_time=param.pattern_period-dds_delay_time;
-	pattern_count=0x3;
+	pattern_count=0x5;
 	while(0<pattern_count){
-		param.f_fill+=160000;
+		param.f_fill+=10000;
 		f_out=param.f_zero+param.f_fill;
 		
 		/*	save new tuning word value to shadow registers	*/
@@ -272,12 +274,10 @@ void main(void)
 		ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 		
 		
-		/*
 		i=ad9102_map[DDS_CYC];
 		ad9102_reg[i].value&=~0xffff;
 		ad9102_reg[i].value=(uint16_t)(f_out*dds_play_time);
 		ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
-		*/
 		
 		
 		/*	establish RUN bit	*/
@@ -289,7 +289,7 @@ void main(void)
 		/*	wait for pattern begining	*/
 		while(1){
 			/*	clear SPI buffer	*/
-			memset(spi_rx_buf,0,AD9102_SPI_BUF_SIZE);	
+			/*	memset(spi_rx_buf,0,AD9102_SPI_BUF_SIZE);	*/
 			ad9102_read_reg(PAT_STATUS,spi_rx_buf,2);
 			/*	check the RUN bit (it MUST be established)	*/
 			if(!(spi_rx_buf[1]&0x1))
@@ -303,14 +303,16 @@ void main(void)
 		while(SysTick_Delay){
 		}
 
+
 		/*	wait for pattern end	*/
 		while(1){
 			/*	clear SPI buffer	*/
-			memset(spi_rx_buf,0,AD9102_SPI_BUF_SIZE);	
+			/*	memset(spi_rx_buf,0,AD9102_SPI_BUF_SIZE);	*/
 			ad9102_read_reg(PAT_STATUS,spi_rx_buf,2);
 			/*	check the RUN bit (it MUST be established)	*/
 			if(!(spi_rx_buf[1]&0x1))
 				continue;
+			/*	exit from the cycle	without interrupt handler	*/
 			if(!(spi_rx_buf[1]&0x2))
 				break;
 		}
@@ -322,7 +324,7 @@ void main(void)
 		ad9102_reg[i].value&=~0x1;
 		ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 		
-		/*	explicitly update registers	*/	
+		/*	explicitly update registers and write new value of tuning word	*/	
 		i=ad9102_map[RAMUPDATE];
 		ad9102_reg[i].value=0x1;
 		ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
@@ -330,7 +332,7 @@ void main(void)
 		pattern_count--;
 	}
 	
-	/*	turn off pattern generator and update active registers automatically	*/
+	/*	turn off pattern generator (just in case)	*/
 	AD9102_Trigger_High;
 	/*	debug output	*/
 	stm32_usart_tx("\n",0);
