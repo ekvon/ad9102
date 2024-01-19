@@ -27,6 +27,7 @@ extern ad9102_map_t ad9102_map;
 static void ad9102_ram_waveform_ramp_up_saw();
 static void ad9102_ram_waveform_ramp_down_saw();
 static void ad9102_ram_waveform_triangle_saw();
+static void ad9102_ram_waveform_gauss(float scale,float interval_bound);
 
 /*
 	Params:
@@ -36,26 +37,21 @@ void ad9102_pattern_dds_ram(ad9102_dds_param_t * param){
 	uint32_t DDS_TW;
 	/*	*/
 	uint32_t f_out;
-	/*	start delay interval (s)	*/
-	float start_delay_time;
-	/*	time interval on which DDS is active	*/
-	float dds_play_time;
 	/*	counter	*/
 	int i;
 	
-	/*	number of clocks inside the only pattern period	*/
-	param->num_clkp_pattern=(uint32_t)(param->f_clkp*param->pattern_period);
-	/*	start delay in seconds	*/
-	start_delay_time=param->pattern_period*param->start_delay;
-	/*	number of clocks inside the start delay	*/
-	param->num_clkp_delay=(uint32_t)(param->f_clkp*start_delay_time);
-	/*	time interval (s) on which DDS is active	*/
-	dds_play_time=param->pattern_period-start_delay_time;
-	if(!param->dds_cyc_out){
+	/*	set output parameters of the structure	*/
+	param->num_clkp_pattern=(uint32_t)(param->f_clkp*param->pattern_time);
+	param->start_delay_time=param->pattern_time*param->start_delay_ratio;
+	param->num_clkp_delay=(uint32_t)(param->f_clkp*param->start_delay_time);
+	param->play_time=param->pattern_time-param->start_delay_time;
+	
+	f_out=param->f_zero+param->f_fill;
+	DDS_TW=ad9102_dds_tw(f_out,param->f_clkp);
+	
+	if(!param->dds_cyc){
 		/*	number of cycles at specified zero and filling frequncies	*/
-		f_out=param->f_zero+param->f_fill;
-		param->dds_cyc_out=(uint16_t)(f_out*dds_play_time);
-		param->dds_cyc_fill=(uint16_t)(param->f_fill*dds_play_time);
+		param->dds_cyc=(uint16_t)(f_out*param->play_time);
 	}
 	else{
 		/*
@@ -74,13 +70,13 @@ void ad9102_pattern_dds_ram(ad9102_dds_param_t * param){
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	i=ad9102_map[PAT_TIMEBASE];
+	/*	START_DELAY_BASE: try to set start delay as short as possible	*/
+	ad9102_reg[i].value&=~(0xf);
+	ad9102_reg[i].value|=(0x1);
 	/*	PATTERN_PERIOD_BASE	*/
 	ad9102_reg[i].value|=(0xf<<4);
-	ad9102_reg[i].value|=(0xf<<4);
+	/*	HOLD	*/
 	ad9102_reg[i].value|=(0xf<<8);
-	/*	START_DELAY_BASE	*/
-	ad9102_reg[i].value&=~(0xf);
-	ad9102_reg[i].value|=(0xf);
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	i=ad9102_map[PAT_PERIOD];
@@ -89,12 +85,13 @@ void ad9102_pattern_dds_ram(ad9102_dds_param_t * param){
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 
 	i=ad9102_map[START_DELAY];
-	/*	store number of clocks divided on base number	*/
-	ad9102_reg[i].value=(uint16_t)(((param->num_clkp_delay/0xf)&0xffff));
+	/*	store minimu value	*/
+	ad9102_reg[i].value&=~0xffff;
+	ad9102_reg[i].value=0x1;	
+	/*	ad9102_reg[i].value=(uint16_t)(((param->num_clkp_delay/0xf)&0xffff));	*/
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*	configure DDS tuning word (system clock established manually)	*/
-	DDS_TW=ad9102_dds_tw(f_out,param->f_clkp);
 	i=ad9102_map[DDS_TW32];
 	ad9102_reg[i].value=(DDS_TW&0xffff00)>>8;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
@@ -104,10 +101,10 @@ void ad9102_pattern_dds_ram(ad9102_dds_param_t * param){
 	
 	/*	number of DDS cycles inside the only pattern period	*/
 	i=ad9102_map[DDS_CYC];
-	ad9102_reg[i].value=param->dds_cyc_out;
+	ad9102_reg[i].value=param->dds_cyc;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
-	/*	establish the start and stop address	*/
+	/*	establish the start and stop address (full memory range is used)	*/
 	i=ad9102_map[START_ADDR];
 	ad9102_reg[i].value&=~(0xfff<<4);
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
@@ -117,14 +114,9 @@ void ad9102_pattern_dds_ram(ad9102_dds_param_t * param){
 	ad9102_reg[i].value|=(0xfff<<4);
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
-	/*	enable DDS MSB	*/
-	/*
-	i=ad9102_map[DDS_CONFIG];
-	ad9102_reg[i].value|=(0x1<<2);
-	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
-	*/
+	/*	enable DDS MSB (not in use)	*/
 	
-	/*	enable access to SRAM from SPI	*/
+	/*	enable access to SRAM from SPI to configure waveform in ram	*/
 	i=ad9102_map[PAT_STATUS];
 	ad9102_reg[i].value&=~0x1;
 	ad9102_reg[i].value|=(0x1<<2);
@@ -135,16 +127,19 @@ void ad9102_pattern_dds_ram(ad9102_dds_param_t * param){
 	ad9102_reg[i].value=0x1;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	/*	wait to apply changes	*/
+	/*
 	while(1){
 		ad9102_read_reg(RAMUPDATE,spi_rx_buf,2);
 		if(!(spi_rx_buf[1]&0x1))
 			break;
 		dummy_loop(0xff);
 	}
+	*/
 	
 	/*	create waveform in sram	*/
-	ad9102_ram_waveform_triangle_saw();
+	/*	ad9102_ram_waveform_triangle_saw();	*/
 	/*	ad9102_ram_waveform_ramp_down_saw();	*/
+	ad9102_ram_waveform_gauss(1.0,/*	4.191673	*/2.7);
 	
 	/*	disable access to memory	*/
 	i=ad9102_map[PAT_STATUS];
@@ -196,5 +191,28 @@ void ad9102_ram_waveform_triangle_saw(){
 	for(;i<0x1000;i++){
 		value=(0x1000-i)*sram_linear_step;
 		ad9102_write_reg(AD9102_SRAM_BASE_ADDR+i,(value<<2));
+	}
+}
+
+void ad9102_ram_waveform_gauss(float scale,float interval_bound){
+	float y_max;
+	float x_inc,y_inc;
+	float x,y;
+	float ratio;
+	uint16_t value;
+	int i;
+	
+	y_max=1.0/(sqrtf(2*M_PI)*scale);
+	x_inc=2.0*interval_bound/AD9102_SRAM_SIZE;
+	y_inc=y_max/AD9102_SRAM_MAX_VALUE;
+	x=-interval_bound;
+	
+	for(i=0;i<AD9102_SRAM_SIZE;i++){
+		x+=x_inc;
+		y=1/(sqrtf(2*M_PI)*scale)*exp(-pow(x/scale,2)/2);
+		ratio=y/y_max;
+		/*	map real interval on integer interval in SRAM	*/
+		value=(uint16_t)(ratio*AD9102_SRAM_MAX_VALUE);
+		ad9102_write_reg(AD9102_SRAM_BASE_ADDR+i,/*	(value<<2)	*/value);
 	}
 }

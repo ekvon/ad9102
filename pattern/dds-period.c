@@ -14,10 +14,6 @@ extern ad9102_map_t ad9102_map;
 	Params:
 */
 void ad9102_pattern_dds_period(ad9102_dds_param_t * param){
-	/*	number of clocks in pattern period	*/
-	uint32_t num_clkp_pattern;
-	/*	number of clocks in start delay	*/
-	uint32_t num_clkp_delay;
 	/*	tuning word	*/
 	uint32_t DDS_TW;
 	/*	*/
@@ -29,22 +25,21 @@ void ad9102_pattern_dds_period(ad9102_dds_param_t * param){
 	int i;
 	
 	/*	number of clocks inside the only pattern period	*/
-	num_clkp_pattern=(uint32_t)(param->f_clkp*param->pattern_period);
+	param->num_clkp_pattern=(uint32_t)(param->f_clkp*param->pattern_time);
 	/*	start delay in seconds	*/
-	start_delay_time=param->pattern_period*param->start_delay;
+	param->start_delay_time=param->pattern_time*param->start_delay_ratio;
 	/*	number of clocks inside the start delay	*/
-	num_clkp_delay=(uint32_t)(param->f_clkp*start_delay_time);
+	param->num_clkp_delay=(uint32_t)(param->f_clkp*param->start_delay_time);
 	/*	*/
-	dds_play_time=param->pattern_period-start_delay_time;
-	if(!param->dds_cyc_out){
+	param->play_time=param->pattern_time-param->start_delay_time;
+	if(!param->dds_cyc){
 		/*	number of cycles at specified zero and filling frequncies	*/
 		f_out=param->f_zero+param->f_fill;
-		param->dds_cyc_out=(uint16_t)(f_out*dds_play_time);
-		param->dds_cyc_fill=(uint16_t)(param->f_fill*dds_play_time);
+		param->dds_cyc=(uint16_t)(f_out*param->play_time);
 	}
 	else{
 		/*	DDS filling frequency at specified number of cycles	and zero frequency	*/
-		f_out=(uint32_t)(1.0*param->dds_cyc_out/dds_play_time);
+		f_out=(uint32_t)(1.0*param->dds_cyc/dds_play_time);
 		param->f_fill=f_out-param->f_zero;
 	}
 
@@ -52,13 +47,6 @@ void ad9102_pattern_dds_period(ad9102_dds_param_t * param){
 	i=ad9102_map[PAT_TYPE];
 	ad9102_reg[i].value&=~0x1;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
-	
-	/*	used when pattern repeats finite number of times	*/
-	/*
-	i=ad9102_map[DAC_PAT];
-	ad9102_reg[i].value|=0xff;
-	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
-	*/
 	
 	i=ad9102_map[WAV_CONFIG];
 	/*	prestored waveform using START_DELAY and PATTERN_PERIOD	*/
@@ -80,12 +68,12 @@ void ad9102_pattern_dds_period(ad9102_dds_param_t * param){
 	
 	i=ad9102_map[PAT_PERIOD];
 	/*	store number of clocks divided on base number	*/
-	ad9102_reg[i].value=(uint16_t)(((num_clkp_pattern/0xf)&0xffff));
+	ad9102_reg[i].value=(uint16_t)(((param->num_clkp_pattern/0xf)&0xffff));
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 
 	i=ad9102_map[START_DELAY];
 	/*	store number of clocks divided on base number	*/
-	ad9102_reg[i].value=(uint16_t)(((num_clkp_delay/0xf)&0xffff));
+	ad9102_reg[i].value=(uint16_t)(((param->num_clkp_delay/0xf)&0xffff));
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*	configure DDS tuning word (system clock established manually)	*/
@@ -99,6 +87,6 @@ void ad9102_pattern_dds_period(ad9102_dds_param_t * param){
 	
 	/*	number of DDS cycles inside the only pattern period	*/
 	i=ad9102_map[DDS_CYC];
-	ad9102_reg[i].value=param->dds_cyc_out;
+	ad9102_reg[i].value=param->dds_cyc;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 }

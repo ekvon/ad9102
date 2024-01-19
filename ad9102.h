@@ -10,6 +10,7 @@
 #define AD9102_SPI_BUF_SIZE 0xf
 #define AD9102_SRAM_BASE_ADDR 0x6000
 #define AD9102_SRAM_SIZE 0x1000
+#define AD9102_SRAM_MAX_VALUE 0x3FFF
 
 #define SPICONFIG 0x00
 #define POWERCONFIG 0x01
@@ -87,22 +88,24 @@ typedef struct ad9102_cal_res
 typedef struct ad9102_dds_param
 {
 	uint32_t f_clkp;
-	/*	zero frequency (frequency of dds_compiler)	*/
+	/*	in:	zero frequency (frequency of dds_compiler)	*/
 	uint32_t f_zero;
-	/*	filling frequency (impulse filling frequency)	*/
+	/*	in:	filling frequency (impulse filling frequency)	*/
 	uint32_t f_fill;
-	/*	pattern period (s)	*/
-	float pattern_period;
-	/*	start delay relative pattern period	*/
-	float start_delay;
-	/*	*/
+	/*	in:	pattern period (s)	*/
+	float pattern_time;
+	/*	in:	start_delay_time/pattern_time relation	*/
+	float start_delay_ratio;
+	/*	out:	*/
+	float start_delay_time;
+	/*	out:	*/
+	float play_time;
+	/*	out:	number of clocks inside the pattern time	*/
 	uint32_t num_clkp_pattern;
-	/*	*/
+	/*	out:	number of clocks inside the start delay	*/
 	uint32_t num_clkp_delay;
-	/*	number of DDS cycles inside the pattern	*/
-	uint16_t dds_cyc_out;
-	/*	number of DDS cycles after heterodin	*/
-	uint16_t dds_cyc_fill;
+	/*	number of DDS cycles inside the play time	*/
+	uint16_t dds_cyc;
 } ad9102_dds_param_t;
 
 void ad9102_map_init();

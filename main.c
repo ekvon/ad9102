@@ -34,8 +34,6 @@ void main(void)
 	uint32_t f_out,f_clkp,DDS_TW;
 	/*	calibration result	*/
 	ad9102_cal_res_t cal_res;
-	/*	*/
-	float dds_play_time, dds_delay_time;
 	
 	/*	PLLCLK settings	*/
 	stm32_pll_t stm32_pll;
@@ -84,6 +82,9 @@ void main(void)
 		stm32_usart_tx(buf,0);
 		return;
 	}
+	AD9102_Trigger_High;
+	/*	mapping register address on index value	*/
+	ad9102_map_init();
 	/*
 	* Hardware reset of ad9102 (the only time).
 	* It's disabled as software reset with the help of SPI port is used.
@@ -92,9 +93,6 @@ void main(void)
 	AD9102_Reset_Low;
 	AD9102_Reset_High;
 	*/
-	AD9102_Trigger_High;
-	/*	mapping register address on index value	*/
-	ad9102_map_init();
 	/*	software reset procedure	*/
 	i=ad9102_map[SPICONFIG];
 	ad9102_reg[i].value=0x2004;
@@ -104,13 +102,15 @@ void main(void)
 	ad9102_reg[i].value=0x1;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	/*	wait acknowledge	*/
+	/*
 	while(1){
 		ad9102_read_reg(RAMUPDATE,spi_rx_buf,2);
 		if(!(spi_rx_buf[1]&0x1))
 			break;
 		dummy_loop(0xff);
-	}
+	}*/
 	
+#ifdef _DEBUG	
 	stm32_usart_tx("Registers reset values:\n",0);
 	/*	read and store reset values of registers	*/
 	for(i=0;i<AD9102_REG_NUM;i++){
@@ -129,13 +129,14 @@ void main(void)
 		ad9102_reg[i].value=spi_rx_buf[1];
 		stm32_usart_tx(buf,0);
 	}
+#endif
 	
 	/*
 	* Calibration procedure.
 	* At this moment it's not used.
 	* The amplitude of output signal is established with the help of DACRSET and DACAGAIN registers (see datasheet).
 	*/ 
-	/*
+#ifdef _CALIBRATION
 	if(calibration(&cal_res)<0){
 		stm32_usart_tx("Calibration is failed\n",0);
 		return;
@@ -143,7 +144,8 @@ void main(void)
 	else{
 		sprintf(buf,"Calibration result: gain=%u, rset=%u\n",cal_res.dac_gain_cal,cal_res.dac_rset_cal);
 		stm32_usart_tx(buf,0);
-	}*/
+	}
+#endif
 	
 	/*	Configure of ad9102	*/
 	i=ad9102_map[SPICONFIG];
@@ -151,14 +153,9 @@ void main(void)
 	ad9102_reg[i].value=0;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
-	/*	*/
-	/*
-	i=ad9102_map[CLOCKCONFIG];
-	ad9102_reg[i].value|=(0x1<<3);
-	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
-	*/
-	
-	/*	'Vref' level	*/
+	/*	parameters of CLOCKCONFIG register are not changed	*/
+
+	/*	'Vref' level (try to get maximum value)	*/
 	i=ad9102_map[REFADJ];
 	ad9102_reg[i].value&=~0x3f;
 	ad9102_reg[i].value|=0x1f;
@@ -197,11 +194,11 @@ void main(void)
 	param.f_clkp=40000000;
 	param.f_zero=12152000/*	13432000	*//*	12792000	*/;
 	param.f_fill=0;
-	param.dds_cyc_out=0;
+	param.dds_cyc=0;
 	/*	1/256	*/
-	param.pattern_period=0.0032768;
+	param.pattern_time=0.0016384;
 	/*	delay is half of pattern period	*/
-	param.start_delay=0.5;
+	param.start_delay_ratio=0.0;
 	
 	/*	DDS output modulated by waveform from RAM	*/
 	ad9102_pattern_dds_ram(&param);
@@ -209,7 +206,7 @@ void main(void)
 	/*	sine wave as DAC output	*/
 	/*	ad9102_pattern_dds_sine(SYSTEM_CORE_CLOCK,param.f_zero+param.f_fill);	*/
 	
-	sprintf(buf,"ad9102_pattern_dds: number of cycles is %u\n",param.dds_cyc_out);
+	sprintf(buf,"ad9102_pattern_dds: number of cycles is %u\n",param.dds_cyc);
 	stm32_usart_tx(buf,0);
 	
 	/*	PARTTERN_RPT: Pattern repeats finite number of times	*/
@@ -241,12 +238,14 @@ void main(void)
 	ad9102_reg[i].value=0x1;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	/*	wait to apply changes	*/
+	/*
 	while(1){
 		ad9102_read_reg(RAMUPDATE,spi_rx_buf,2);
 		if(!(spi_rx_buf[1]&0x1))
 			break;
 		dummy_loop(0xff);
 	}
+	*/
 	/*	initialize SysTickTimer but don't start it	*/
 	SysTick->LOAD  = (uint32_t)(param.num_clkp_pattern);
   NVIC_SetPriority (SysTick_IRQn, (1UL << __NVIC_PRIO_BITS) - 1UL);
@@ -255,11 +254,9 @@ void main(void)
                    SysTick_CTRL_TICKINT_Msk;
 
 		
-	dds_delay_time=param.pattern_period*param.start_delay;
-	dds_play_time=param.pattern_period-dds_delay_time;
 	pattern_count=0x5;
 	while(0<pattern_count){
-		param.f_fill+=10000;
+		param.f_fill+=610;
 		f_out=param.f_zero+param.f_fill;
 		
 		/*	save new tuning word value to shadow registers	*/
@@ -273,10 +270,9 @@ void main(void)
 		ad9102_reg[i].value|=(DDS_TW&0xff)<<8;
 		ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 		
-		
 		i=ad9102_map[DDS_CYC];
 		ad9102_reg[i].value&=~0xffff;
-		ad9102_reg[i].value=(uint16_t)(f_out*dds_play_time);
+		ad9102_reg[i].value=(uint16_t)(f_out*param.play_time);
 		ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 		
 		
@@ -299,13 +295,14 @@ void main(void)
 		}
 		SysTick_Delay=1;
 		/*	start SysTickHandler	*/
+		SysTick->VAL=0;
 		SysTick->CTRL|=SysTick_CTRL_ENABLE_Msk;
 		while(SysTick_Delay){
 		}
 
 
 		/*	wait for pattern end	*/
-		while(1){
+		while(SysTick_Delay){
 			/*	clear SPI buffer	*/
 			/*	memset(spi_rx_buf,0,AD9102_SPI_BUF_SIZE);	*/
 			ad9102_read_reg(PAT_STATUS,spi_rx_buf,2);
@@ -314,7 +311,7 @@ void main(void)
 				continue;
 			/*	exit from the cycle	without interrupt handler	*/
 			if(!(spi_rx_buf[1]&0x2))
-				break;
+			break;
 		}
 		/*	turn off pattern generator and update active registers automatically	*/
 		AD9102_Trigger_High;
@@ -352,7 +349,8 @@ void main(void)
 		stm32_usart_tx(buf,0);
 	}
 	
-	/*	PAT_STATUS: clear RUN bit and enable read access to SRAM	*/
+#ifdef _DEBUG
+	/*	PAT_STATUS: enable read access to SRAM	*/
 	i=ad9102_map[PAT_STATUS];
 	/*	ad9102_reg[i].value&=~0x1;	*/
 	ad9102_reg[i].value|=(0x3<<2);
@@ -363,12 +361,14 @@ void main(void)
 	ad9102_reg[i].value=0x1;
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	/*	wait to apply changes	*/
+	/*
 	while(1){
 		ad9102_read_reg(RAMUPDATE,spi_rx_buf,2);
 		if(!(spi_rx_buf[1]&0x1))
 			break;
 		dummy_loop(0xff);
 	}
+	*/
 	
 	/*	check SRAM values (first and last address)	*/
 	ad9102_read_reg(0x6000,spi_rx_buf,2);
@@ -398,6 +398,7 @@ void main(void)
 	ad9102_reg[i].value&=~0x1;
 	ad9102_reg[i].value&=~(0x3<<2);
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
+#endif
 	
 	stm32_usart_tx("Programm is finished\n",0);
 	/*	programm is finished (blink with the green led)	*/
