@@ -5,16 +5,39 @@
 #include <stdio.h>
 
 #define SYSTEM_CORE_CLOCK 40000000
+#define NUM_TW 0xff
+#define AD9102_TX_BUF_SIZE 0x400
 
 /*	global variables	*/
 char buf[MODEM_CHAR_BUF_SIZE];
+char ad9102_tx_buf_0[AD9102_TX_BUF_SIZE];
+char ad9102_tx_buf_1[AD9102_TX_BUF_SIZE];
+
 uint16_t spi_rx_buf[AD9102_SPI_BUF_SIZE];
-uint16_t pattern_count;
 uint8_t SysTick_Delay;
 
 ad9102_spi_data_t spi_data;
 extern ad9102_reg_t ad9102_reg[AD9102_REG_NUM];
 extern ad9102_map_t ad9102_map;
+extern unsigned int tw_table[NUM_TW];
+
+const char * test_msg_0="\
+=== 1. Introduction\
+\
+\"kbuild\" is the build system used by the Linux kernel. Modules must use\
+kbuild to stay compatible with changes in the build infrastructure and\
+to pick up the right flags to \"gcc.\" Functionality for building modules\
+both in-tree and out-of-tree is provided. The method for building\
+either is similar, and all modules are initially developed and built\
+out-of-tree.";
+
+const char * test_msg_1="\
+Covered in this document is information aimed at developers interested\
+in building out-of-tree (or \"external\") modules. The author of an\
+external module should supply a makefile that hides most of the\
+complexity, so one only has to type \"make\" to build the module. This is\
+easily accomplished, and a complete example will be presented in\
+section 3.";
 
 /*	not in use	*/
 void SysTick_Handler(){
@@ -31,9 +54,14 @@ void main(void)
 	/*	use to write data to the only register	*/
 	uint16_t value;
 	/*	used to define DDS_TW	*/
-	uint32_t f_out,f_clkp,DDS_TW;
+	uint32_t f_out,f_clkp,tw_value;
 	/*	calibration result	*/
 	ad9102_cal_res_t cal_res;
+	/*	pointer to current sended symbol	*/
+	char * p;
+	/*	index of tw in table	*/
+	uint8_t tw_idx;
+	
 	
 	/*	PLLCLK settings	*/
 	stm32_pll_t stm32_pll;
@@ -254,20 +282,22 @@ void main(void)
                    SysTick_CTRL_TICKINT_Msk;
 
 		
-	pattern_count=0x5;
-	while(0<pattern_count){
-		param.f_fill+=610;
-		f_out=param.f_zero+param.f_fill;
-		
+	/*	init transfer buffers	*/
+	strcpy(ad9102_tx_buf_0,test_msg_0);
+	strcpy(ad9102_tx_buf_1,test_msg_1);
+	p=ad9102_tx_buf_0;
+	/*	sending cycle	*/
+	for(;*p;p++){
+		tw_idx=(uint8_t)*p;
+		tw_value=tw_table[tw_idx];		
 		/*	save new tuning word value to shadow registers	*/
-		DDS_TW=ad9102_dds_tw(f_out,param.f_clkp);
 		i=ad9102_map[DDS_TW32];
 		ad9102_reg[i].value&=~0xffff;
-		ad9102_reg[i].value=(DDS_TW&0xffff00)>>8;
+		ad9102_reg[i].value=(tw_value&0xffff00)>>8;
 		ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 		i=ad9102_map[DDS_TW1];
 		ad9102_reg[i].value&=~0xffff;
-		ad9102_reg[i].value|=(DDS_TW&0xff)<<8;
+		ad9102_reg[i].value|=(tw_value&0xff)<<8;
 		ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 		
 		i=ad9102_map[DDS_CYC];
@@ -325,8 +355,6 @@ void main(void)
 		i=ad9102_map[RAMUPDATE];
 		ad9102_reg[i].value=0x1;
 		ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
-		/*	*/
-		pattern_count--;
 	}
 	
 	/*	turn off pattern generator (just in case)	*/

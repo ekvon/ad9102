@@ -38,8 +38,8 @@ CFLAGS=$(COREFLAGS)
 
 all:$(Proj_Name)
 
-$(Proj_Name):$(Startup_FileName).o system_stm32f4xx.o main.o rcc.o uart.o gpio.o spi.o ad9102-reg.o ad9102-spi.o calibration.o dds-sine.o	dds-period.o dds-ram.o # $(Proj_Name)-as.o pattern.o 
-	arm-none-eabi-gcc $(LDFLAGS) -o $(Proj_Name).elf -Tmem.ld $(Startup_FileName).o system_stm32f4xx.o main.o rcc.o uart.o gpio.o spi.o ad9102-reg.o ad9102-spi.o calibration.o dds-sine.o dds-period.o dds-ram.o $(Lib_M) # $(Proj_Name)-as.o
+$(Proj_Name):$(Startup_FileName).o system_stm32f4xx.o main.o rcc.o uart.o gpio.o spi.o ad9102-reg.o ad9102-spi.o calibration.o dds-sine.o	dds-period.o dds-ram.o tw_table.o # $(Proj_Name)-as.o pattern.o 
+	arm-none-eabi-gcc $(LDFLAGS) -o $(Proj_Name).elf -Tmem.ld $(Startup_FileName).o system_stm32f4xx.o main.o rcc.o uart.o gpio.o spi.o ad9102-reg.o ad9102-spi.o calibration.o dds-sine.o dds-period.o dds-ram.o tw_table.o $(Lib_M) # $(Proj_Name)-as.o
 	arm-none-eabi-objcopy -O binary $(Proj_Name).elf $(Proj_Name).bin
 
 $(Startup_FileName).o:
@@ -49,7 +49,7 @@ system_stm32f4xx.o:
 	arm-none-eabi-gcc $(COREFLAGS) -O2 -ffreestanding -Wall -I$(CMSIS_Device_Include) -I$(CMSIS_Core_Include) -c $(CMSIS_Device_Source)/system_stm32f4xx.c -o $@ -g -D$(Target)
 		
 main.o:
-		arm-none-eabi-gcc $(COREFLAGS) -I$(CMSIS_Device_Include) -I$(CMSIS_Core_Include) -c -g -o $@ main.c -D$(Target)
+		arm-none-eabi-gcc $(COREFLAGS) -I$(CMSIS_Device_Include) -I$(CMSIS_Core_Include) -c -g -o $@ main.c -D$(Target) -D_DEBUG
 rcc.o:
 		arm-none-eabi-gcc $(COREFLAGS) -I$(CMSIS_Device_Include) -I$(CMSIS_Core_Include) -c -g -o $@ rcc.c -D$(Target)
 uart.o:
@@ -64,8 +64,8 @@ ad9102-spi.o:
 		arm-none-eabi-gcc $(COREFLAGS) -I$(CMSIS_Device_Include) -I$(CMSIS_Core_Include) -c -g -o $@ ad9102-spi.c -D$(Target)
 calibration.o:
 	arm-none-eabi-gcc $(COREFLAGS) -I$(CMSIS_Device_Include) -I$(CMSIS_Core_Include) -c -g -o $@ calibration.c -D$(Target)
-# pattern.o:
-#	arm-none-eabi-gcc $(COREFLAGS) -I$(CMSIS_Device_Include) -I$(CMSIS_Core_Include) -I$(Proj_Dir) -c -g -o $@ pattern/pattern.c -D$(Target)
+tw_table.o:
+	arm-none-eabi-gcc $(COREFLAGS) -I$(CMSIS_Device_Include) -I$(CMSIS_Core_Include) -I$(Proj_Dir) -c -g -o $@ pattern/tw_table.c -D$(Target)
 dds-sine.o:
 	arm-none-eabi-gcc $(COREFLAGS) -I$(CMSIS_Device_Include) -I$(CMSIS_Core_Include) -I$(Proj_Dir) -c -g -o $@ pattern/dds-sine.c -D$(Target)
 dds-period.o:
