@@ -72,7 +72,7 @@ void ad9102_pattern_dds_ram(ad9102_dds_param_t * param){
 	i=ad9102_map[PAT_TIMEBASE];
 	/*	START_DELAY_BASE: try to set start delay as short as possible	*/
 	ad9102_reg[i].value&=~(0xf);
-	ad9102_reg[i].value|=(0x1);
+	ad9102_reg[i].value|=(0xf);
 	/*	PATTERN_PERIOD_BASE	*/
 	ad9102_reg[i].value|=(0xf<<4);
 	/*	HOLD	*/
@@ -81,14 +81,14 @@ void ad9102_pattern_dds_ram(ad9102_dds_param_t * param){
 	
 	i=ad9102_map[PAT_PERIOD];
 	/*	store number of clocks divided on base number	*/
-	ad9102_reg[i].value=(uint16_t)(((param->num_clkp_pattern/0xf)&0xffff));
+	ad9102_reg[i].value=(uint16_t)((((param->num_clkp_pattern+param->num_clkp_delay)/0xf)&0xffff));
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 
 	i=ad9102_map[START_DELAY];
-	/*	store minimu value	*/
+	/*	store minimum value	*/
 	ad9102_reg[i].value&=~0xffff;
-	ad9102_reg[i].value=0x1;	
-	/*	ad9102_reg[i].value=(uint16_t)(((param->num_clkp_delay/0xf)&0xffff));	*/
+	/*	ad9102_reg[i].value=0xf;	*/
+	ad9102_reg[i].value=(uint16_t)(((param->num_clkp_delay/0xf)&0xffff));
 	ad9102_write_reg(ad9102_reg[i].addr,ad9102_reg[i].value);
 	
 	/*	configure DDS tuning word (system clock established manually)	*/

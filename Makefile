@@ -1,5 +1,5 @@
 Proj_Name=ad9102
-Proj_Super_Dir=/home/kvon/W/Projects/sys/radio
+Proj_Super_Dir=/home/kvon/W/Projects/radio
 Proj_Dir=$(Proj_Super_Dir)/$(Proj_Name)
 CMSIS_Dir=$(Proj_Super_Dir)/lib/CMSIS/STM32CubeF4/Drivers/CMSIS
 CMSIS_Core_Include=$(CMSIS_Dir)/Core/Include
